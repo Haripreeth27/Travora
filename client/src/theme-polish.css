@@ -1311,3 +1311,110 @@ code, kbd, .monospace {
   }
 }
 
+/* --------------------------------------------------------------------------
+   14. BULK & GROUP TRAVEL STYLES
+   -------------------------------------------------------------------------- */
+.headcount-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 4px 10px !important;
+  border-radius: 99px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.28) !important;
+}
+.dark .headcount-badge {
+  background: rgba(16, 185, 129, 0.22) !important;
+  color: #34d399 !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+.headcount-badge-large {
+  font-size: 13px !important;
+  padding: 6px 14px !important;
+}
+
+.group-per-person-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  background: var(--surface-soft) !important;
+  color: var(--ink-muted) !important;
+  border: 1px solid var(--line) !important;
+}
+
+.bulk-hero-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  padding: 24px 28px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+  margin-bottom: 22px !important;
+}
+.bulk-hero-card h2 {
+  color: #ffffff !important;
+  margin: 4px 0 8px !important;
+}
+.bulk-hero-card p {
+  color: #94a3b8 !important;
+  font-size: 13px !important;
+  max-width: 580px !important;
+  margin: 0 !important;
+}
+
+.quick-count-chips {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+  margin-top: 6px !important;
+}
+.quick-count-chip {
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border: 1px solid var(--line) !important;
+  background: var(--surface-soft) !important;
+  color: var(--ink-soft) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+.quick-count-chip:hover {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border-color: var(--primary) !important;
+}
+
+.manifest-list-preview {
+  max-height: 240px !important;
+  overflow-y: auto !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: var(--surface-soft) !important;
+  margin-top: 10px !important;
+}
+.manifest-row-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 12px !important;
+  border-bottom: 1px solid var(--line) !important;
+  font-size: 12px !important;
+}
+.manifest-row-item:last-child {
+  border-bottom: none !important;
+}
+
+

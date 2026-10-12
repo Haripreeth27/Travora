@@ -60,7 +60,7 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, notificationsApi, healthApi, type AuthUser, type Role } from "./lib/api";
+import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
@@ -200,9 +200,11 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/employee/support": { eyebrow: "Employee workspace", title: "Support", description: "Answers and help for every stage of your trip." },
   "/approver": { eyebrow: "Approver workspace", title: "Approval queue", description: "Review requests with enough context to make a confident decision." },
   "/approver/bookings": { eyebrow: "Approver workspace", title: "Desk bookings", description: "Review confirmed ticketing, costs, and attachments completed by the Travel Desk." },
+  "/approver/bulk-bookings": { eyebrow: "Approver workspace", title: "Bulk & Group Movements", description: "Review headcount allocations, mass travel manifests, and large team budgets logged by the Travel Desk." },
   "/approver/history": { eyebrow: "Approver workspace", title: "Approval history", description: "A record of decisions made across your team." },
   "/travel-desk": { eyebrow: "Travel desk", title: "Operations overview", description: "Keep approved trips moving toward a confirmed booking." },
   "/travel-desk/bookings": { eyebrow: "Travel desk", title: "Booking queue", description: "Manage ticketing details and booking status." },
+  "/travel-desk/bulk-bookings": { eyebrow: "Travel desk", title: "Bulk & Group Bookings", description: "Coordinate mass movements, flight blocks, train coaches, and passenger rosters for up to 100+ travelers." },
   "/travel-desk/cancellations": { eyebrow: "Travel desk", title: "Cancellations", description: "Coordinate eligible cancellations and keep the record clear." },
   "/admin": { eyebrow: "Administration", title: "Control center", description: "A high-level view of travel activity across the organization." },
   "/admin/employees": { eyebrow: "Administration", title: "Employees", description: "Directory and travel access for your organization." },
@@ -225,6 +227,7 @@ const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]
   APPROVER: [
     { label: "Approval queue", href: "/approver", icon: <LayoutDashboard size={17} /> },
     { label: "Desk bookings", href: "/approver/bookings", icon: <TicketCheck size={17} /> },
+    { label: "Bulk & Group Bookings", href: "/approver/bulk-bookings", icon: <UsersRound size={17} /> },
     { label: "Approval history", href: "/approver/history", icon: <FileCheck2 size={17} /> },
     { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
     { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
@@ -232,6 +235,7 @@ const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]
   TRAVEL_DESK: [
     { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={17} /> },
     { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={17} /> },
+    { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={17} /> },
     { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={17} /> },
     { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
   ],
@@ -1491,6 +1495,54 @@ function ApproverBookings() {
         </div>
       </section>
 
+      {/* Mass & Bulk Movements Alert Banner */}
+      <div
+        className="panel"
+        style={{
+          background: "linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 14,
+          padding: "16px 20px",
+          borderRadius: 14,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "rgba(59, 130, 246, 0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#60a5fa",
+            }}
+          >
+            <UsersRound size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>
+              Mass & Bulk Travel Movements (Up to 100+ Passengers)
+            </div>
+            <div style={{ fontSize: 12, color: "#94a3b8" }}>
+              The Travel Desk logs mass bookings, flight blocks, and group manifests. Inspect headcount rosters and approve bulk allocations.
+            </div>
+          </div>
+        </div>
+        <Link
+          href="/approver/bulk-bookings"
+          className="button button-primary"
+          style={{ padding: "8px 14px", fontSize: 12, gap: 6 }}
+        >
+          Inspect Bulk Movements <ArrowUpRight size={14} />
+        </Link>
+      </div>
+
       <section className="stats-grid desk-stats">
         <StatCard
           label="Confirmed bookings"
@@ -1654,6 +1706,949 @@ function ApproverBookings() {
           onClose={() => setSelectedBooking(null)}
         />
       )}
+    </div>
+  );
+}
+
+function GroupManifestModal({
+  booking,
+  onClose,
+  onUpdate,
+  isApprover = false,
+}: {
+  booking: BulkBookingRecord;
+  onClose: () => void;
+  onUpdate?: () => void;
+  isApprover?: boolean;
+}) {
+  const [passengerSearch, setPassengerSearch] = useState("");
+  const [approverComment, setApproverComment] = useState(booking.approverComment || "");
+  const [reviewing, setReviewing] = useState(false);
+  const [currentBooking, setCurrentBooking] = useState<BulkBookingRecord>(booking);
+
+  const manifest = currentBooking.passengerList || [];
+  const filteredManifest = useMemo(() => {
+    const q = passengerSearch.trim().toLowerCase();
+    if (!q) return manifest;
+    return manifest.filter((p) =>
+      p.name.toLowerCase().includes(q) ||
+      (p.employeeId && p.employeeId.toLowerCase().includes(q)) ||
+      (p.department && p.department.toLowerCase().includes(q)) ||
+      (p.seatOrCoach && p.seatOrCoach.toLowerCase().includes(q))
+    );
+  }, [manifest, passengerSearch]);
+
+  const handleApproverDecision = async (status: "APPROVED" | "NOTED") => {
+    setReviewing(true);
+    try {
+      const updated = await bulkBookingsApi.reviewByApprover(currentBooking.id, status, approverComment);
+      setCurrentBooking(updated);
+      toast.success(status === "APPROVED" ? "Bulk movement budget approved successfully!" : "Bulk movement noted.");
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update approver status.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const downloadManifestCsv = () => {
+    const headers = ["Sl No", "Passenger Name", "Employee ID", "Department", "Seat / Berth / Allocation", "Master PNR", "Group Mission"];
+    const rows = (manifest.length > 0 ? manifest : Array.from({ length: currentBooking.headcount }, (_, i) => ({
+      name: `Passenger ${i + 1}`,
+      employeeId: `EMP-${1000 + i}`,
+      department: currentBooking.departments?.[0] || "Operations",
+      seatOrCoach: `Block ${Math.floor(i / 30) + 1} - Seat ${((i % 30) + 1)}`,
+    }))).map((p, index) => [
+      String(index + 1),
+      p.name,
+      p.employeeId || "—",
+      p.department || "Operations",
+      p.seatOrCoach || `Seat ${index + 1}`,
+      currentBooking.groupReference,
+      currentBooking.title,
+    ]);
+    exportToCsv(`manifest_${currentBooking.groupReference}_${currentBooking.destination}`, headers, rows);
+    toast.success("Passenger manifest CSV downloaded.");
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="request-details-modal" style={{ maxWidth: 860, maxHeight: "90vh", overflowY: "auto" }}>
+        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close group voucher">
+          <X size={18} />
+        </button>
+
+        <div className="flex items-center justify-between gap-3 pr-8">
+          <div>
+            <span className="card-kicker">MASS MOVEMENT VOUCHER & MANIFEST</span>
+            <h2 style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 24, margin: "4px 0 0" }}>
+              {currentBooking.title}
+            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+              <span className="meta-chip meta-chip-primary">
+                <TicketCheck size={12} /> Master PNR: {currentBooking.groupReference}
+              </span>
+              <span className="headcount-badge headcount-badge-large">
+                <UsersRound size={14} /> {currentBooking.headcount} Confirmed Travelers
+              </span>
+              <span className="meta-chip">
+                {currentBooking.travelMode} · {currentBooking.provider}
+              </span>
+            </div>
+          </div>
+          <div>
+            {currentBooking.approverStatus === "APPROVED" ? (
+              <span className="approval-pill approved"><CheckCircle2 size={13} /> Approver Approved</span>
+            ) : currentBooking.approverStatus === "NOTED" ? (
+              <span className="approval-pill booked"><Check size={13} /> Approver Noted</span>
+            ) : (
+              <span className="approval-pill pending"><Clock3 size={13} /> Pending Approver Sign-off</span>
+            )}
+          </div>
+        </div>
+
+        {/* Movement Summary Cards */}
+        <div className="stats-grid desk-stats" style={{ marginTop: 16, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+          <StatCard
+            label="Route & Destination"
+            value={currentBooking.destination}
+            detail={`${currentBooking.fromLocation} → ${currentBooking.destination}`}
+            icon={<Compass size={18} />}
+          />
+          <StatCard
+            label="Travel Dates"
+            value={currentBooking.travelDates.split("–")[0]?.trim() || currentBooking.travelDates}
+            detail={currentBooking.travelDates}
+            icon={<CalendarDays size={18} />}
+          />
+          <StatCard
+            label="Total Group Spend"
+            value={`₹${currentBooking.totalCost.toLocaleString("en-IN")}`}
+            detail={`₹${currentBooking.costPerPerson.toLocaleString("en-IN")} per traveler`}
+            icon={<WalletCards size={18} />}
+            accent="stat-accent"
+          />
+          <StatCard
+            label="Corporate Savings"
+            value={currentBooking.savings ? `₹${currentBooking.savings.toLocaleString("en-IN")}` : "Negotiated"}
+            detail="Bulk desk rate"
+            icon={<Sparkles size={18} />}
+          />
+        </div>
+
+        {/* Logistics & Coordinator Details */}
+        <div className="panel" style={{ background: "var(--surface-soft)", border: "1px solid var(--line)", padding: "14px 18px", marginTop: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, fontSize: 12 }}>
+            <div>
+              <span style={{ color: "var(--ink-muted)", display: "block" }}>Project / Cost Center</span>
+              <strong style={{ color: "var(--ink)" }}>{currentBooking.project || "Jamnagar Petrochem Operations"}</strong>
+            </div>
+            <div>
+              <span style={{ color: "var(--ink-muted)", display: "block" }}>Logged by Travel Desk Coordinator</span>
+              <strong style={{ color: "var(--ink)" }}>{currentBooking.coordinatorName || "Travel Desk Operations (123456)"}</strong>
+            </div>
+            <div>
+              <span style={{ color: "var(--ink-muted)", display: "block" }}>Date Logged</span>
+              <strong style={{ color: "var(--ink)" }}>{new Date(currentBooking.loggedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong>
+            </div>
+          </div>
+          {currentBooking.itineraryNotes && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)", fontSize: 12, color: "var(--ink-soft)" }}>
+              <strong>Logistics instructions: </strong> {currentBooking.itineraryNotes}
+            </div>
+          )}
+        </div>
+
+        {/* Approver Sign-off Section */}
+        {isApprover ? (
+          <div className="panel" style={{ border: "1px solid rgba(59, 130, 246, 0.3)", background: "rgba(59, 130, 246, 0.04)", padding: "16px 20px", marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <ShieldCheck size={18} style={{ color: "var(--blue)" }} />
+              <strong style={{ fontSize: 14, color: "var(--ink)" }}>Approver Review & Budget Sign-off</strong>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 12px" }}>
+              As the Designated Approver, review the headcount allocation ({currentBooking.headcount} travelers) and total budget (₹{currentBooking.totalCost.toLocaleString("en-IN")}) logged by the Travel Desk.
+            </p>
+            <div style={{ display: "grid", gap: 10 }}>
+              <label className="field" style={{ margin: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>Approver comments / audit notes:</span>
+                <input
+                  value={approverComment}
+                  onChange={(e) => setApproverComment(e.target.value)}
+                  placeholder="e.g. Approved under site commissioning mobilization budget allocation."
+                  style={{ fontSize: 12 }}
+                />
+              </label>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={() => handleApproverDecision("APPROVED")}
+                  disabled={reviewing}
+                  style={{ background: "#059669", borderColor: "#059669" }}
+                >
+                  <CheckCircle2 size={15} /> {reviewing ? "Saving…" : "Sign Off & Approve Budget"}
+                </button>
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => handleApproverDecision("NOTED")}
+                  disabled={reviewing}
+                >
+                  <Check size={14} /> Mark Acknowledged / Noted
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : currentBooking.approverComment ? (
+          <div className="panel" style={{ border: "1px solid rgba(16, 185, 129, 0.3)", background: "rgba(16, 185, 129, 0.04)", padding: "12px 16px", marginTop: 14, fontSize: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#059669", fontWeight: 700, marginBottom: 4 }}>
+              <CheckCircle2 size={15} /> Approver Sign-off on File
+            </div>
+            <div style={{ color: "var(--ink)" }}>"{currentBooking.approverComment}"</div>
+            {currentBooking.approverReviewedAt && (
+              <small style={{ color: "var(--ink-muted)", fontSize: 10 }}>Signed off on {new Date(currentBooking.approverReviewedAt).toLocaleString("en-IN")}</small>
+            )}
+          </div>
+        ) : null}
+
+        {/* Passenger Manifest Roster Section */}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                Passenger Manifest Roster ({manifest.length || currentBooking.headcount} travelers)
+              </h3>
+              <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "2px 0 0" }}>
+                Roster breakdown for master PNR {currentBooking.groupReference}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={downloadManifestCsv}
+                style={{ padding: "6px 12px", fontSize: 12 }}
+                title="Download CSV roster"
+              >
+                <FileSpreadsheet size={14} /> Export CSV Roster
+              </button>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={handlePrint}
+                style={{ padding: "6px 12px", fontSize: 12 }}
+                title="Print Group Voucher"
+              >
+                <Printer size={14} /> Print Voucher
+              </button>
+            </div>
+          </div>
+
+          <div className="search-field" style={{ marginBottom: 10 }}>
+            <Search size={15} />
+            <input
+              value={passengerSearch}
+              onChange={(e) => setPassengerSearch(e.target.value)}
+              placeholder="Search manifest by passenger name, employee ID, department, or seat/coach…"
+              style={{ fontSize: 12 }}
+            />
+          </div>
+
+          <div className="manifest-list-preview" style={{ maxHeight: 320 }}>
+            {filteredManifest.length > 0 ? (
+              filteredManifest.map((p, idx) => (
+                <div className="manifest-row-item" key={idx}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-muted)", width: 24 }}>#{idx + 1}</span>
+                    <span className="avatar avatar-tiny">{(p.name || "P").slice(0, 2).toUpperCase()}</span>
+                    <div>
+                      <strong style={{ fontSize: 13, color: "var(--ink)" }}>{p.name}</strong>
+                      <div style={{ fontSize: 11, color: "var(--ink-muted)" }}>
+                        {p.employeeId ? `ID: ${p.employeeId} · ` : ""}{p.department || "Operations"}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="meta-chip" style={{ fontSize: 11 }}>
+                      {p.seatOrCoach || `Seat ${idx + 1}`}
+                    </span>
+                    <span className="ticket-badge" style={{ fontSize: 10 }}>
+                      <Check size={10} /> Confirmed
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : manifest.length === 0 ? (
+              <div style={{ padding: "20px 14px", textAlign: "center", fontSize: 12, color: "var(--ink-muted)" }}>
+                Group block confirmed for {currentBooking.headcount} travelers on Master PNR {currentBooking.groupReference}.
+              </div>
+            ) : (
+              <div style={{ padding: "20px 14px", textAlign: "center", fontSize: 12, color: "var(--ink-muted)" }}>
+                No passengers match "{passengerSearch}".
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="dialog-actions" style={{ marginTop: 22 }}>
+          <button type="button" className="button button-primary" onClick={onClose}>
+            Done / Close Voucher
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ApproverBulkBookings() {
+  const [records, setRecords] = useState<BulkBookingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING_REVIEW" | "APPROVED">("ALL");
+  const [selectedRecord, setSelectedRecord] = useState<BulkBookingRecord | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    bulkBookingsApi.list()
+      .then((data) => {
+        if (active) setRecords(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Unable to load bulk bookings.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [refreshKey]);
+
+  const totalHeadcount = records.reduce((sum, r) => sum + (r.headcount || 0), 0);
+  const totalSpend = records.reduce((sum, r) => sum + (r.totalCost || 0), 0);
+  const pendingCount = records.filter((r) => r.approverStatus === "PENDING_REVIEW").length;
+  const approvedCount = records.filter((r) => r.approverStatus === "APPROVED").length;
+
+  const filtered = useMemo(() => {
+    return records.filter((r) => {
+      if (statusFilter !== "ALL" && (r.approverStatus || "PENDING_REVIEW") !== statusFilter) return false;
+      if (!query.trim()) return true;
+      const q = query.toLowerCase();
+      return (
+        r.title?.toLowerCase().includes(q) ||
+        r.destination?.toLowerCase().includes(q) ||
+        r.fromLocation?.toLowerCase().includes(q) ||
+        r.groupReference?.toLowerCase().includes(q) ||
+        r.provider?.toLowerCase().includes(q) ||
+        r.project?.toLowerCase().includes(q)
+      );
+    });
+  }, [records, statusFilter, query]);
+
+  return (
+    <div className="page-stack animate-page">
+      <PageTitle meta={pageMeta["/approver/bulk-bookings"]} />
+
+      <section className="ops-hero">
+        <div>
+          <span className="card-kicker">APPROVER AUDIT & MASS MOVEMENTS</span>
+          <h2>Bulk & Group Travel Allocations</h2>
+          <p>
+            Review bulk travel bookings logged by the Travel Desk for large teams (50 to 100+ travelers). Inspect passenger manifest rosters, master PNRs, and sign off on group budgets.
+          </p>
+        </div>
+        <div className="ops-hero-metric">
+          <span>Total Group Spend</span>
+          <strong>₹{totalSpend.toLocaleString("en-IN")}</strong>
+          <small>{totalHeadcount} travelers across {records.length} movements</small>
+        </div>
+      </section>
+
+      <section className="stats-grid desk-stats">
+        <StatCard
+          label="Total Mass Movements"
+          value={String(records.length).padStart(2, "0")}
+          detail="Active group bookings"
+          icon={<UsersRound size={18} />}
+          accent="stat-accent"
+        />
+        <StatCard
+          label="Total Travelers"
+          value={String(totalHeadcount).padStart(2, "0")}
+          detail="Headcount allocated"
+          icon={<UserRound size={18} />}
+        />
+        <StatCard
+          label="Group Travel Budget"
+          value={`₹${totalSpend.toLocaleString("en-IN")}`}
+          detail="Cumulative mass spend"
+          icon={<WalletCards size={18} />}
+        />
+        <StatCard
+          label="Pending Review"
+          value={String(pendingCount).padStart(2, "0")}
+          detail={`${approvedCount} approved`}
+          icon={<Clock3 size={18} />}
+        />
+      </section>
+
+      <div className="panel table-panel">
+        <div className="table-toolbar">
+          <div className="search-field">
+            <Search size={16} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by title, destination, master PNR reference, carrier, or project…"
+            />
+          </div>
+          <div className="filter-chips">
+            <button
+              type="button"
+              className={`filter-chip ${statusFilter === "ALL" ? "filter-chip-active" : ""}`}
+              onClick={() => setStatusFilter("ALL")}
+            >
+              All movements ({records.length})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${statusFilter === "PENDING_REVIEW" ? "filter-chip-active" : ""}`}
+              onClick={() => setStatusFilter("PENDING_REVIEW")}
+            >
+              Pending Sign-off ({pendingCount})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${statusFilter === "APPROVED" ? "filter-chip-active" : ""}`}
+              onClick={() => setStatusFilter("APPROVED")}
+            >
+              Approved ({approvedCount})
+            </button>
+          </div>
+        </div>
+
+        {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
+
+        {loading ? (
+          <EmptyState
+            icon={<Clock3 size={20} />}
+            title="Loading bulk movements"
+            description="Fetching group travel bookings from the Travel Desk."
+          />
+        ) : filtered.length ? (
+          <div className="responsive-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Group Mission / Title</th>
+                  <th>Route & Dates</th>
+                  <th>Carrier & Master PNR</th>
+                  <th>Headcount</th>
+                  <th>Total Cost & Cost/Pax</th>
+                  <th>Approver Sign-off</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((record) => (
+                  <tr key={record.id}>
+                    <td>
+                      <div>
+                        <strong>{record.title}</strong>
+                        <small className="table-subline">{record.project || "Operations"}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <strong>{record.destination}</strong>
+                      <small className="table-subline">{record.fromLocation} → {record.destination} · {record.travelDates}</small>
+                    </td>
+                    <td>
+                      <strong>{record.groupReference}</strong>
+                      <small className="table-subline">{record.provider} ({record.travelMode})</small>
+                    </td>
+                    <td>
+                      <span className="headcount-badge">
+                        <UsersRound size={12} /> {record.headcount} travelers
+                      </span>
+                    </td>
+                    <td>
+                      <strong>₹{record.totalCost.toLocaleString("en-IN")}</strong>
+                      <small className="table-subline">₹{record.costPerPerson.toLocaleString("en-IN")} / head</small>
+                    </td>
+                    <td>
+                      {record.approverStatus === "APPROVED" ? (
+                        <span className="approval-pill approved"><CheckCircle2 size={12} /> Approved</span>
+                      ) : record.approverStatus === "NOTED" ? (
+                        <span className="approval-pill booked"><Check size={12} /> Noted</span>
+                      ) : (
+                        <span className="approval-pill pending"><Clock3 size={12} /> Pending Review</span>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="table-action"
+                        style={{ color: "var(--blue)", fontWeight: 700 }}
+                        onClick={() => setSelectedRecord(record)}
+                      >
+                        Inspect Manifest & Sign Off <ArrowUpRight size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={<UsersRound size={20} />}
+            title="No mass movements found"
+            description="Group travel bookings logged by the Travel Desk will appear here."
+          />
+        )}
+      </div>
+
+      {selectedRecord && (
+        <GroupManifestModal
+          booking={selectedRecord}
+          isApprover={true}
+          onClose={() => setSelectedRecord(null)}
+          onUpdate={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BulkBookingDialog({
+  booking,
+  onClose,
+  onSuccess,
+}: {
+  booking?: BulkBookingRecord | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [title, setTitle] = useState(booking?.title || "Jamnagar Petrochem Site Commissioning - 100 Engineers");
+  const [destination, setDestination] = useState(booking?.destination || "Jamnagar");
+  const [fromLocation, setFromLocation] = useState(booking?.fromLocation || "Mumbai");
+  const [travelDates, setTravelDates] = useState(booking?.travelDates || "18 Oct 2026 – 25 Oct 2026");
+  const [travelMode, setTravelMode] = useState<"FLIGHT" | "TRAIN" | "BUS" | "HOTEL" | "MULTI_MODAL">(booking?.travelMode || "FLIGHT");
+  const [provider, setProvider] = useState(booking?.provider || "IndiGo Corporate Group Desk");
+  const [groupReference, setGroupReference] = useState(booking?.groupReference || `GRP-6E-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [headcount, setHeadcount] = useState<number>(booking?.headcount || 100);
+  const [totalCost, setTotalCost] = useState<number>(booking?.totalCost || 850000);
+  const [savings, setSavings] = useState<number>(booking?.savings || 75000);
+  const [project, setProject] = useState(booking?.project || "Jamnagar Refinery Phase 3");
+  const [itineraryNotes, setItineraryNotes] = useState(
+    booking?.itineraryNotes || "Dedicated check-in counter at Terminal 2. Airport shuttle bus arranged to Jamnagar township."
+  );
+  const [passengers, setPassengers] = useState<BulkBookingPassenger[]>(
+    booking?.passengerList || []
+  );
+
+  const [newPaxName, setNewPaxName] = useState("");
+  const [newPaxDept, setNewPaxDept] = useState("Site Operations");
+
+  const costPerPerson = headcount > 0 ? Math.round(totalCost / headcount) : 0;
+
+  const autoPopulateRoster = (targetCount: number) => {
+    const list: BulkBookingPassenger[] = [];
+    REGISTERED_EMPLOYEES.forEach((emp, i) => {
+      if (list.length < targetCount) {
+        list.push({
+          name: emp.fullName,
+          employeeId: emp.employeeNumber,
+          department: emp.department,
+          seatOrCoach: `Seat ${String.fromCharCode(65 + (i % 6))}-${Math.floor(i / 6) + 1}`,
+        });
+      }
+    });
+    while (list.length < targetCount) {
+      const idx = list.length + 1;
+      const deptChoices = [
+        "Site Commissioning",
+        "Piping & Fabrication",
+        "Instrumentation",
+        "Civil & Structural",
+        "Safety & Environment",
+        "Electrical Systems",
+        "Refinery Quality Control",
+      ];
+      const chosenDept = deptChoices[idx % deptChoices.length];
+      list.push({
+        name: `Site Specialist ${idx}`,
+        employeeId: `ENG-SITE-${String(idx).padStart(3, "0")}`,
+        department: chosenDept,
+        seatOrCoach: `Seat ${String.fromCharCode(65 + (idx % 6))}-${Math.floor(idx / 6) + 1}`,
+      });
+    }
+    setPassengers(list);
+    toast.success(`Generated manifest roster with ${targetCount} passengers.`);
+  };
+
+  const handleHeadcountQuickPick = (count: number) => {
+    setHeadcount(count);
+    if (passengers.length > 0 && passengers.length !== count) {
+      autoPopulateRoster(count);
+    }
+  };
+
+  const addManualPassenger = () => {
+    if (!newPaxName.trim()) return;
+    const newPassenger: BulkBookingPassenger = {
+      name: newPaxName.trim(),
+      department: newPaxDept.trim() || "Operations",
+      employeeId: `PAX-${passengers.length + 1}`,
+      seatOrCoach: `Seat ${passengers.length + 1}`,
+    };
+    setPassengers([...passengers, newPassenger]);
+    setNewPaxName("");
+    setHeadcount(Math.max(headcount, passengers.length + 1));
+  };
+
+  const removePassenger = (index: number) => {
+    const next = passengers.filter((_, i) => i !== index);
+    setPassengers(next);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !destination.trim() || !groupReference.trim() || headcount <= 0 || totalCost <= 0) {
+      setError("Please provide a Title, Destination, Master Reference/PNR, valid Headcount, and Total Cost.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+
+    let finalPassengers = passengers;
+    if (finalPassengers.length === 0) {
+      finalPassengers = [];
+      for (let i = 0; i < headcount; i++) {
+        finalPassengers.push({
+          name: i < REGISTERED_EMPLOYEES.length ? REGISTERED_EMPLOYEES[i].fullName : `Specialist ${i + 1}`,
+          employeeId: i < REGISTERED_EMPLOYEES.length ? REGISTERED_EMPLOYEES[i].employeeNumber : `SITE-${100 + i}`,
+          department: i < REGISTERED_EMPLOYEES.length ? REGISTERED_EMPLOYEES[i].department : "Site Engineering",
+          seatOrCoach: `Allocation ${i + 1}`,
+        });
+      }
+    }
+
+    try {
+      const payload: Partial<BulkBookingRecord> = {
+        title: title.trim(),
+        destination: destination.trim(),
+        fromLocation: fromLocation.trim(),
+        travelDates: travelDates.trim(),
+        travelMode,
+        provider: provider.trim(),
+        groupReference: groupReference.trim(),
+        headcount: Number(headcount),
+        totalCost: Number(totalCost),
+        costPerPerson,
+        savings: Number(savings) || 0,
+        project: project.trim(),
+        itineraryNotes: itineraryNotes.trim(),
+        passengerList: finalPassengers,
+        passengerManifestSummary: `${finalPassengers.length} travelers manifest attached`,
+        coordinatorName: "Travel Desk Operations (123456)",
+      };
+
+      if (booking?.id) {
+        await bulkBookingsApi.update(booking.id, payload);
+        toast.success(`Bulk booking ${booking.id} updated.`);
+      } else {
+        await bulkBookingsApi.create(payload);
+        toast.success(`Logged bulk booking for ${headcount} travelers to ${destination}!`);
+      }
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save bulk booking.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="booking-dialog" style={{ maxWidth: 740, maxHeight: "90vh", overflowY: "auto" }}>
+        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
+          <X size={18} />
+        </button>
+
+        <div className="booking-dialog-header">
+          <div className="confirm-icon approve" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#059669" }}>
+            <UsersRound size={22} />
+          </div>
+          <span className="card-kicker">MASS MOVEMENTS & BULK TRAVEL LOG</span>
+          <h2>{booking?.id ? "Edit Bulk Booking" : "Log Bulk / Group Booking"}</h2>
+          <p>
+            Log corporate group travel details (e.g. 50 to 100+ travelers) to the same destination. Automatically visible to the Approver for budget review.
+          </p>
+        </div>
+
+        <form className="booking-form" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>Group Movement Title / Mission</span>
+            <input
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Jamnagar Petrochem Site Commissioning - 100 Engineers"
+            />
+          </label>
+
+          <div className="form-grid">
+            <label className="field">
+              <span>Origin City</span>
+              <input
+                required
+                value={fromLocation}
+                onChange={(e) => setFromLocation(e.target.value)}
+                placeholder="e.g. Mumbai"
+              />
+            </label>
+            <label className="field">
+              <span>Destination City</span>
+              <input
+                required
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                placeholder="e.g. Jamnagar"
+              />
+            </label>
+            <label className="field">
+              <span>Travel Dates</span>
+              <input
+                required
+                value={travelDates}
+                onChange={(e) => setTravelDates(e.target.value)}
+                placeholder="e.g. 18 Oct 2026 – 25 Oct 2026"
+              />
+            </label>
+          </div>
+
+          <div className="form-grid">
+            <label className="field">
+              <span>Travel Mode</span>
+              <select
+                value={travelMode}
+                onChange={(e) => setTravelMode(e.target.value as any)}
+              >
+                <option value="FLIGHT">Flight (Charter / Group Block)</option>
+                <option value="TRAIN">Train (Dedicated Coach / Bulk IRCTC)</option>
+                <option value="BUS">Bus (Volvo Fleet / Charter)</option>
+                <option value="HOTEL">Hotel (Group Room Block)</option>
+                <option value="MULTI_MODAL">Multi-Modal Movement</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Carrier / Provider</span>
+              <input
+                required
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                placeholder="e.g. IndiGo Corporate Group Desk"
+              />
+            </label>
+
+            <label className="field">
+              <span>Master PNR / Group Ref</span>
+              <input
+                required
+                value={groupReference}
+                onChange={(e) => setGroupReference(e.target.value)}
+                placeholder="e.g. GRP-6E-98421"
+              />
+            </label>
+          </div>
+
+          {/* Headcount Selection & Quick Chips */}
+          <div className="field">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Headcount (Number of travelers)</span>
+              <span className="headcount-badge">
+                <UsersRound size={12} /> {headcount} Travelers
+              </span>
+            </div>
+            <input
+              type="number"
+              min="2"
+              max="1000"
+              required
+              value={headcount}
+              onChange={(e) => setHeadcount(Number(e.target.value))}
+            />
+            <div className="quick-count-chips">
+              <span style={{ fontSize: 11, color: "var(--ink-muted)", alignSelf: "center", marginRight: 4 }}>Quick presets:</span>
+              {[25, 50, 75, 100, 150].map((cnt) => (
+                <button
+                  key={cnt}
+                  type="button"
+                  className="quick-count-chip"
+                  onClick={() => handleHeadcountQuickPick(cnt)}
+                >
+                  {cnt} pax
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Spend & Cost Per Person */}
+          <div className="form-grid">
+            <label className="field">
+              <span>Total Group Spend (₹)</span>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                required
+                value={totalCost}
+                onChange={(e) => setTotalCost(Number(e.target.value))}
+                placeholder="e.g. 850000"
+              />
+            </label>
+            <label className="field">
+              <span>Negotiated Savings (₹)</span>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={savings}
+                onChange={(e) => setSavings(Number(e.target.value))}
+                placeholder="e.g. 75000"
+              />
+            </label>
+            <label className="field">
+              <span>Project / Cost Center</span>
+              <input
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+                placeholder="e.g. Jamnagar Refinery Phase 3"
+              />
+            </label>
+          </div>
+
+          {/* Live Cost-per-head banner */}
+          <div className="panel" style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.25)", padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+              <Sparkles size={16} className="text-emerald-500" />
+              <span>
+                <strong>Cost Per Traveler: </strong>
+                ₹{costPerPerson.toLocaleString("en-IN")} / person
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>
+              {headcount} passengers × ₹{costPerPerson.toLocaleString("en-IN")} = ₹{totalCost.toLocaleString("en-IN")}
+            </span>
+          </div>
+
+          {/* Passenger Roster Section */}
+          <div className="field" style={{ marginTop: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <span>Passenger Manifest Roster ({passengers.length} travelers registered)</span>
+              <button
+                type="button"
+                className="button button-ghost"
+                style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
+                onClick={() => autoPopulateRoster(headcount)}
+              >
+                <Zap size={12} className="text-amber-500" /> Auto-fill {headcount} Roster (Employees & Specialists)
+              </button>
+            </div>
+
+            {/* Quick manual passenger row */}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input
+                placeholder="Add passenger name…"
+                value={newPaxName}
+                onChange={(e) => setNewPaxName(e.target.value)}
+                style={{ flex: 1, fontSize: 12 }}
+              />
+              <input
+                placeholder="Department / Role…"
+                value={newPaxDept}
+                onChange={(e) => setNewPaxDept(e.target.value)}
+                style={{ width: 160, fontSize: 12 }}
+              />
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={addManualPassenger}
+                style={{ padding: "6px 12px", fontSize: 12 }}
+              >
+                + Add
+              </button>
+            </div>
+
+            {/* Manifest list */}
+            {passengers.length > 0 && (
+              <div className="manifest-list-preview">
+                {passengers.slice(0, 15).map((p, i) => (
+                  <div className="manifest-row-item" key={i}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-muted)" }}>#{i + 1}</span>
+                      <strong>{p.name}</strong>
+                      <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>({p.department})</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="meta-chip" style={{ fontSize: 10 }}>{p.seatOrCoach || "Allocated"}</span>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => removePassenger(i)}
+                        title="Remove passenger"
+                        style={{ padding: 2 }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {passengers.length > 15 && (
+                  <div style={{ padding: "8px 12px", fontSize: 11, textAlign: "center", color: "var(--ink-muted)", background: "var(--surface)" }}>
+                    + and {passengers.length - 15} more travelers in manifest roster
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <label className="field">
+            <span>Group Logistics & Dispatch Instructions</span>
+            <textarea
+              rows={2}
+              value={itineraryNotes}
+              onChange={(e) => setItineraryNotes(e.target.value)}
+              placeholder="Airport shuttle bus schedules, dedicated check-in desks, group luggage tags, etc."
+            />
+          </label>
+
+          {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
+
+          <div className="dialog-actions">
+            <button type="button" className="button button-ghost" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" className="button button-primary" disabled={submitting}>
+              {submitting ? "Saving Movement…" : booking?.id ? "Update Bulk Booking" : "Log Bulk Booking & Notify Approver"}{" "}
+              <ArrowUpRight size={16} />
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -2053,6 +3048,7 @@ function TravelDesk() {
   const [location] = useLocation();
   const cancellationsMode = location === "/travel-desk/cancellations";
   const bookingsMode = location === "/travel-desk/bookings";
+  const bulkMode = location === "/travel-desk/bulk-bookings";
   const [refreshKey, setRefreshKey] = useState(0);
   const { journeys, loading, error } = useTravelRequests(user, refreshKey);
   const [bookingRecords, setBookingRecords] = useState<any[]>([]);
@@ -2063,6 +3059,15 @@ function TravelDesk() {
   const [cancellingBooking, setCancellingBooking] = useState<any | null>(null);
   const [deletingJourney, setDeletingJourney] = useState<Journey | null>(null);
   const [viewingVoucher, setViewingVoucher] = useState<{ journey: Journey; booking: any } | null>(null);
+
+  // Bulk / Group Travel Desk state
+  const [bulkBookings, setBulkBookings] = useState<BulkBookingRecord[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(true);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [selectedBulkManifest, setSelectedBulkManifest] = useState<BulkBookingRecord | null>(null);
+  const [editingBulkRecord, setEditingBulkRecord] = useState<BulkBookingRecord | null>(null);
+  const [deletingBulkRecord, setDeletingBulkRecord] = useState<BulkBookingRecord | null>(null);
+  const [bulkQuery, setBulkQuery] = useState("");
 
   // Workstation interactive filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -2080,6 +3085,16 @@ function TravelDesk() {
     }).finally(() => {
       if (active) setBookingsLoading(false);
     });
+
+    setBulkLoading(true);
+    bulkBookingsApi.list().then((data) => {
+      if (active) setBulkBookings(Array.isArray(data) ? data : []);
+    }).catch((err) => {
+      console.warn("Failed to load bulk bookings", err);
+    }).finally(() => {
+      if (active) setBulkLoading(false);
+    });
+
     return () => { active = false; };
   }, [refreshKey]);
 
@@ -2095,6 +3110,23 @@ function TravelDesk() {
   const totalSavings = useMemo(() => activeBookings.reduce((sum, b) => sum + (Number(b.savings) || 0), 0), [activeBookings]);
   const avgSpend = activeBookings.length ? Math.round(totalSpend / activeBookings.length) : 0;
   const totalCancellationCharges = useMemo(() => cancelledBookings.reduce((sum, b) => sum + (Number(b.cancellationCharge) || 0), 0), [cancelledBookings]);
+
+  // Bulk movements computations
+  const totalBulkHeadcount = useMemo(() => bulkBookings.reduce((sum, b) => sum + (b.headcount || 0), 0), [bulkBookings]);
+  const totalBulkSpend = useMemo(() => bulkBookings.reduce((sum, b) => sum + (b.totalCost || 0), 0), [bulkBookings]);
+  const avgBulkCostPerPerson = totalBulkHeadcount > 0 ? Math.round(totalBulkSpend / totalBulkHeadcount) : 0;
+  const filteredBulkBookings = useMemo(() => {
+    if (!bulkQuery.trim()) return bulkBookings;
+    const q = bulkQuery.toLowerCase();
+    return bulkBookings.filter((b) =>
+      b.title?.toLowerCase().includes(q) ||
+      b.destination?.toLowerCase().includes(q) ||
+      b.fromLocation?.toLowerCase().includes(q) ||
+      b.groupReference?.toLowerCase().includes(q) ||
+      b.provider?.toLowerCase().includes(q) ||
+      b.project?.toLowerCase().includes(q)
+    );
+  }, [bulkBookings, bulkQuery]);
 
   // Urgent departures: trips departing in <= 2 days (<48h) that are not cancelled
   const urgentDepartures = useMemo(() => {
@@ -2273,6 +3305,164 @@ function TravelDesk() {
               />
             ) : (
               <EmptyState icon={<XCircle size={20} />} title="No booking records" description="Booking records will appear here from the backend." />
+            )}
+          </div>
+        </>
+      ) : bulkMode ? (
+        /* DEDICATED BULK & GROUP TRAVEL WORKSTATION */
+        <>
+          <div className="section-title-row" style={{ alignItems: "flex-start", marginBottom: 12 }}>
+            <div>
+              <span className="card-kicker">MASS MOVEMENTS & GROUP WORKSTATION</span>
+              <h2 className="section-heading">Bulk Travel & Flight Blocks</h2>
+              <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "4px 0 0" }}>
+                Book and coordinate travel for large teams (50 to 100+ travelers) to the same destination. Log master PNRs, generate rosters, and share with Approver.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setBulkModalOpen(true)}
+              >
+                <Plus size={15} /> Log Bulk Booking (100+ pax)
+              </button>
+              <Link href="/travel-desk" className="button button-ghost">
+                <LayoutDashboard size={15} /> Operations Overview
+              </Link>
+            </div>
+          </div>
+
+          <section className="stats-grid desk-stats">
+            <StatCard
+              label="Mass Movements"
+              value={String(bulkBookings.length).padStart(2, "0")}
+              detail="Active bulk bookings"
+              icon={<UsersRound size={18} />}
+              accent="stat-accent"
+            />
+            <StatCard
+              label="Travelers Coordinated"
+              value={String(totalBulkHeadcount).padStart(2, "0")}
+              detail="Across all group blocks"
+              icon={<UserRound size={18} />}
+            />
+            <StatCard
+              label="Bulk Travel Spend"
+              value={`₹${totalBulkSpend.toLocaleString("en-IN")}`}
+              detail="Group desk expenditure"
+              icon={<WalletCards size={18} />}
+            />
+            <StatCard
+              label="Avg Cost / Head"
+              value={`₹${avgBulkCostPerPerson.toLocaleString("en-IN")}`}
+              detail="Per-person efficiency"
+              icon={<Sparkles size={18} />}
+            />
+          </section>
+
+          <div className="panel table-panel">
+            <div className="table-toolbar">
+              <div className="search-field">
+                <Search size={16} />
+                <input
+                  value={bulkQuery}
+                  onChange={(e) => setBulkQuery(e.target.value)}
+                  placeholder="Filter by title, destination, master PNR, carrier, or project…"
+                />
+              </div>
+              <span className="data-note">
+                <ShieldCheck size={13} /> Visible to Approver
+              </span>
+            </div>
+
+            {bulkLoading ? (
+              <EmptyState icon={<Clock3 size={20} />} title="Loading bulk movements" description="Fetching bulk bookings from Travora." />
+            ) : filteredBulkBookings.length ? (
+              <div className="responsive-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mission / Group Title</th>
+                      <th>Route & Dates</th>
+                      <th>Carrier & Master PNR</th>
+                      <th>Headcount</th>
+                      <th>Total Spend & Cost/Pax</th>
+                      <th>Approver Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBulkBookings.map((b) => (
+                      <tr key={b.id}>
+                        <td>
+                          <strong>{b.title}</strong>
+                          <small className="table-subline">{b.project || "Operations"}</small>
+                        </td>
+                        <td>
+                          <strong>{b.destination}</strong>
+                          <small className="table-subline">{b.fromLocation} → {b.destination} · {b.travelDates}</small>
+                        </td>
+                        <td>
+                          <strong>{b.groupReference}</strong>
+                          <small className="table-subline">{b.provider} ({b.travelMode})</small>
+                        </td>
+                        <td>
+                          <span className="headcount-badge">
+                            <UsersRound size={12} /> {b.headcount} travelers
+                          </span>
+                        </td>
+                        <td>
+                          <strong>₹{b.totalCost.toLocaleString("en-IN")}</strong>
+                          <small className="table-subline">₹{b.costPerPerson.toLocaleString("en-IN")} / head</small>
+                        </td>
+                        <td>
+                          {b.approverStatus === "APPROVED" ? (
+                            <span className="approval-pill approved"><CheckCircle2 size={12} /> Approved</span>
+                          ) : b.approverStatus === "NOTED" ? (
+                            <span className="approval-pill booked"><Check size={12} /> Noted</span>
+                          ) : (
+                            <span className="approval-pill pending"><Clock3 size={12} /> Pending Review</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="table-inline-actions">
+                            <button
+                              type="button"
+                              className="table-action"
+                              style={{ color: "var(--blue)" }}
+                              onClick={() => setSelectedBulkManifest(b)}
+                              title="Inspect manifest & print voucher"
+                            >
+                              Manifest <UsersRound size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="table-action"
+                              onClick={() => setEditingBulkRecord(b)}
+                            >
+                              Edit <ArrowUpRight size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="table-action table-action-danger"
+                              onClick={() => setDeletingBulkRecord(b)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState
+                icon={<UsersRound size={20} />}
+                title="No bulk bookings logged"
+                description="Click '+ Log Bulk Booking' to log group travel for up to 100+ travelers."
+              />
             )}
           </div>
         </>
@@ -2602,6 +3792,65 @@ function TravelDesk() {
             </div>
           )}
 
+          {/* Bulk & Group Travel Spotlight */}
+          <div
+            className="panel"
+            style={{
+              background: "linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 14,
+              padding: "16px 20px",
+              marginBottom: 20,
+              borderRadius: 14,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 10,
+                  background: "rgba(16, 185, 129, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#34d399",
+                }}
+              >
+                <UsersRound size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>
+                  Bulk & Group Travel Bookings ({totalBulkHeadcount} Travelers Coordinated)
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                  {bulkBookings.length} mass movements logged (e.g. 100-person site commissioning to Jamnagar). Shared with Approver.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setBulkModalOpen(true)}
+                style={{ padding: "8px 14px", fontSize: 12, gap: 6 }}
+              >
+                <Plus size={14} /> Log Bulk Booking
+              </button>
+              <Link
+                href="/travel-desk/bulk-bookings"
+                className="button button-ghost"
+                style={{ padding: "8px 14px", fontSize: 12, gap: 6, color: "#e2e8f0" }}
+              >
+                Open Group Workstation <ArrowUpRight size={14} />
+              </Link>
+            </div>
+          </div>
+
           {/* Core Operations Stats */}
           <div className="stats-grid desk-stats">
             <StatCard label="Approved to book" value={String(approvedCount).padStart(2, "0")} detail="Ready for ticketing" icon={<ShieldCheck size={18} />} accent="stat-accent" />
@@ -2841,6 +4090,44 @@ function TravelDesk() {
       {editingBooking && <BookingEditDialog booking={editingBooking} onClose={() => setEditingBooking(null)} onSubmit={updateBooking} />}
       {cancellingBooking && <CancellationDialog booking={cancellingBooking} onClose={() => setCancellingBooking(null)} onSubmit={cancelBooking} />}
       {viewingVoucher && <VoucherModal journey={viewingVoucher.journey} booking={viewingVoucher.booking} onClose={() => setViewingVoucher(null)} />}
+      {bulkModalOpen && (
+        <BulkBookingDialog
+          onClose={() => setBulkModalOpen(false)}
+          onSuccess={() => {
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+      {editingBulkRecord && (
+        <BulkBookingDialog
+          booking={editingBulkRecord}
+          onClose={() => setEditingBulkRecord(null)}
+          onSuccess={() => {
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+      {selectedBulkManifest && (
+        <GroupManifestModal
+          booking={selectedBulkManifest}
+          isApprover={false}
+          onClose={() => setSelectedBulkManifest(null)}
+          onUpdate={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
+      {deletingBulkRecord && (
+        <DeleteConfirmDialog
+          title={`Delete bulk booking ${deletingBulkRecord.groupReference}?`}
+          description={`Remove group movement "${deletingBulkRecord.title}" for ${deletingBulkRecord.headcount} travelers to ${deletingBulkRecord.destination}?`}
+          confirmLabel="Delete bulk booking"
+          onConfirm={async () => {
+            await bulkBookingsApi.delete(deletingBulkRecord.id);
+            toast.success(`Bulk booking ${deletingBulkRecord.groupReference} deleted.`);
+            setRefreshKey((k) => k + 1);
+          }}
+          onClose={() => setDeletingBulkRecord(null)}
+        />
+      )}
       {deletingJourney && (
         <DeleteConfirmDialog
           title={`Delete request #${deletingJourney.id}?`}
@@ -4167,6 +5454,7 @@ function AppRouter() {
     APPROVER: [
       "/approver",
       "/approver/bookings",
+      "/approver/bulk-bookings",
       "/approver/history",
       "/employee/reports",
       "/employee/support",
@@ -4174,6 +5462,7 @@ function AppRouter() {
     TRAVEL_DESK: [
       "/travel-desk",
       "/travel-desk/bookings",
+      "/travel-desk/bulk-bookings",
       "/travel-desk/cancellations",
       "/employee/reports",
     ],
@@ -4236,8 +5525,9 @@ function AppRouter() {
   else if (path === "/employee/support") page = <Support />;
   else if (path === "/approver") page = <Approvals />;
   else if (path === "/approver/bookings") page = <ApproverBookings />;
+  else if (path === "/approver/bulk-bookings") page = <ApproverBulkBookings />;
   else if (path === "/approver/history") page = <Approvals history />;
-  else if (path === "/travel-desk" || path === "/travel-desk/bookings" || path === "/travel-desk/cancellations") page = <TravelDesk />;
+  else if (path === "/travel-desk" || path === "/travel-desk/bookings" || path === "/travel-desk/bulk-bookings" || path === "/travel-desk/cancellations") page = <TravelDesk />;
   else if (path.startsWith("/admin")) page = <Admin user={user} section={path === "/admin" ? "overview" : path.replace("/admin/", "")} />;
   else page = <Dashboard user={user} />;
 

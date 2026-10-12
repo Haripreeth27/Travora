@@ -625,6 +625,7 @@ _sanitizeLocalStorage();
 
 const SYSTEM_REQUESTS_KEY = "travora_system_requests";
 const SYSTEM_BOOKINGS_KEY = "travora_system_bookings";
+const SYSTEM_BULK_BOOKINGS_KEY = "travora_system_bulk_bookings_v1";
 const SYSTEM_NOTIFICATIONS_KEY = "travora_system_notifications";
 const DELETED_REQUESTS_KEY = "travora_deleted_request_ids";
 const DELETED_BOOKINGS_KEY = "travora_deleted_booking_ids";
@@ -758,6 +759,132 @@ function _saveAllSystemNotifications(notifs: any[]) {
     window.localStorage.setItem(SYSTEM_NOTIFICATIONS_KEY, JSON.stringify(notifs));
   } catch (e) {
     console.warn("Failed to save system notifications", e);
+  }
+}
+
+export type BulkBookingPassenger = {
+  name: string;
+  employeeId?: string;
+  department?: string;
+  seatOrCoach?: string;
+};
+
+export type BulkBookingRecord = {
+  id: string;
+  title: string;
+  destination: string;
+  fromLocation: string;
+  travelDates: string;
+  departureDate?: string;
+  returnDate?: string;
+  travelMode: "FLIGHT" | "TRAIN" | "BUS" | "HOTEL" | "MULTI_MODAL";
+  provider: string;
+  groupReference: string;
+  headcount: number;
+  totalCost: number;
+  costPerPerson: number;
+  savings?: number;
+  project?: string;
+  departments?: string[];
+  passengerManifestSummary?: string;
+  passengerList?: BulkBookingPassenger[];
+  itineraryNotes?: string;
+  coordinatorName?: string;
+  loggedAt: string;
+  status: "CONFIRMED" | "IN_REVIEW" | "CANCELLED";
+  approverStatus?: "APPROVED" | "PENDING_REVIEW" | "NOTED";
+  approverComment?: string;
+  approverReviewedAt?: string;
+  attachmentName?: string;
+  attachmentData?: string;
+};
+
+const DEFAULT_BULK_BOOKINGS: BulkBookingRecord[] = [
+  {
+    id: "GRP-BK-101",
+    title: "Jamnagar Petrochem Site Commissioning - 100 Engineers",
+    destination: "Jamnagar",
+    fromLocation: "Hyderabad",
+    travelDates: "20 Oct 2026 – 28 Oct 2026",
+    departureDate: "2026-10-20",
+    returnDate: "2026-10-28",
+    travelMode: "FLIGHT",
+    provider: "IndiGo Corporate Group Desk",
+    groupReference: "GRP-6E-98421",
+    headcount: 100,
+    totalCost: 850000,
+    costPerPerson: 8500,
+    savings: 125000,
+    project: "Apollo Phase II Commissioning",
+    departments: ["Field Engineering", "Site Operations", "Instrumentation", "Safety & HSE"],
+    passengerManifestSummary: "100 Field Engineers, Site Supervisors & HSE Specialists deployed for refinery turnaround.",
+    passengerList: [
+      { name: "Suresh Babu Dangeti", employeeId: "AGR0001", department: "Petroleum Operations", seatOrCoach: "Block 1A-14F" },
+      { name: "Ganesh Kakarla", employeeId: "AGR0003", department: "Site Operations", seatOrCoach: "Block 1A-14F" },
+      { name: "Vijaya Kumar Bgam", employeeId: "MISPL0014", department: "Project Engineering", seatOrCoach: "Block 1A-14F" },
+      { name: "P Satheesh", employeeId: "MISPL0016", department: "Field Engineering", seatOrCoach: "Block 1A-14F" },
+      { name: "G Yathish Sai Krishna Posi", employeeId: "MISPL0402", department: "Instrumentation", seatOrCoach: "Block 1A-14F" },
+      { name: "Rammohan Gubbala", employeeId: "MISPL0423", department: "Safety & HSE", seatOrCoach: "Block 1A-14F" },
+      { name: "Uppu Durga Rao", employeeId: "MISPL0429", department: "Piping Engineering", seatOrCoach: "Block 1A-14F" },
+      { name: "Dileep Kumar Gode", employeeId: "MISPL0440", department: "Maintenance & Reliability", seatOrCoach: "Block 1A-14F" },
+      { name: "Panthangi Shashidhar", employeeId: "MISPL0466", department: "Operations Coordination", seatOrCoach: "Block 1A-14F" },
+      { name: "+ 91 Additional Site Engineers & Technicians", employeeId: "EMP-GROUP-91", department: "Engineering & Field Crew", seatOrCoach: "Confirmed Charter Block" }
+    ],
+    itineraryNotes: "Charter coach boarding from Rajiv Gandhi Intl Airport Terminal 3 Gate 4 at 05:30 AM. Unified check-in counter arranged. Group baggage tag code: APOLLO-JMN.",
+    coordinatorName: "Central Travel Desk",
+    loggedAt: "2026-10-10T10:30:00.000Z",
+    status: "CONFIRMED",
+    approverStatus: "APPROVED",
+    approverComment: "Approved mass movement for Apollo commissioning team. Cost within project capital budget.",
+    approverReviewedAt: "2026-10-10T14:15:00.000Z",
+  },
+  {
+    id: "GRP-BK-102",
+    title: "Q4 Engineering & Technology Annual Summit",
+    destination: "Bengaluru",
+    fromLocation: "Visakhapatnam",
+    travelDates: "05 Nov 2026 – 08 Nov 2026",
+    departureDate: "2026-11-05",
+    returnDate: "2026-11-08",
+    travelMode: "TRAIN",
+    provider: "IRCTC Special Dedicated AC Coach",
+    groupReference: "IRCTC-COACH-7B-902",
+    headcount: 45,
+    totalCost: 157500,
+    costPerPerson: 3500,
+    savings: 38000,
+    project: "Corporate Technology Summit",
+    departments: ["Technology & Systems", "Design & Drafting", "Quality Assurance"],
+    passengerManifestSummary: "45 Technology & Design engineers attending annual technical summit.",
+    itineraryNotes: "Dedicated AC 2-Tier Coach B1 & B2 attached to train 12845. Packed meals arranged.",
+    coordinatorName: "Central Travel Desk",
+    loggedAt: "2026-10-11T12:00:00.000Z",
+    status: "CONFIRMED",
+    approverStatus: "PENDING_REVIEW",
+  }
+];
+
+function _getAllSystemBulkBookings(): BulkBookingRecord[] {
+  if (!hasStorage()) return DEFAULT_BULK_BOOKINGS;
+  try {
+    const raw = window.localStorage.getItem(SYSTEM_BULK_BOOKINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.warn("Failed to load system bulk bookings", e);
+  }
+  _saveAllSystemBulkBookings(DEFAULT_BULK_BOOKINGS);
+  return DEFAULT_BULK_BOOKINGS;
+}
+
+function _saveAllSystemBulkBookings(bookings: BulkBookingRecord[]) {
+  if (!hasStorage()) return;
+  try {
+    window.localStorage.setItem(SYSTEM_BULK_BOOKINGS_KEY, JSON.stringify(bookings));
+  } catch (e) {
+    console.warn("Failed to save system bulk bookings", e);
   }
 }
 
@@ -1365,6 +1492,112 @@ export const dashboardApi = {
         totalEmployees: user?.role === "EMPLOYEE" ? 1 : REGISTERED_EMPLOYEES.length,
       };
     }
+  },
+};
+
+export const bulkBookingsApi = {
+  list: async (): Promise<BulkBookingRecord[]> => {
+    return _getAllSystemBulkBookings();
+  },
+  getById: async (id: string): Promise<BulkBookingRecord | null> => {
+    const list = _getAllSystemBulkBookings();
+    return list.find((b) => b.id === id) || null;
+  },
+  create: async (payload: Partial<BulkBookingRecord>): Promise<BulkBookingRecord> => {
+    const headcount = Math.max(1, Number(payload.headcount) || 1);
+    const totalCost = Number(payload.totalCost) || 0;
+    const costPerPerson = headcount > 0 ? Math.round(totalCost / headcount) : totalCost;
+
+    const newRecord: BulkBookingRecord = {
+      id: `GRP-BK-${Math.floor(Math.random() * 900 + 100)}`,
+      title: payload.title || "Group Corporate Travel Movement",
+      destination: payload.destination || "Destination",
+      fromLocation: payload.fromLocation || "HQ",
+      travelDates: payload.travelDates || "Upcoming",
+      departureDate: payload.departureDate,
+      returnDate: payload.returnDate,
+      travelMode: (payload.travelMode as any) || "FLIGHT",
+      provider: payload.provider || "Corporate Group Desk",
+      groupReference: payload.groupReference || `GRP-${Date.now().toString().slice(-6)}`,
+      headcount,
+      totalCost,
+      costPerPerson,
+      savings: payload.savings ? Number(payload.savings) : 0,
+      project: payload.project || "General Operations",
+      departments: payload.departments || ["Corporate Operations"],
+      passengerManifestSummary: payload.passengerManifestSummary || `${headcount} Corporate Travelers`,
+      passengerList: payload.passengerList || [],
+      itineraryNotes: payload.itineraryNotes,
+      coordinatorName: payload.coordinatorName || "Central Travel Desk",
+      loggedAt: new Date().toISOString(),
+      status: "CONFIRMED",
+      approverStatus: "PENDING_REVIEW",
+      attachmentName: payload.attachmentName,
+      attachmentData: payload.attachmentData,
+    };
+
+    const current = _getAllSystemBulkBookings();
+    _saveAllSystemBulkBookings([newRecord, ...current]);
+
+    // Send notification to Approver
+    const notifs = _getAllSystemNotifications();
+    const newNotif = {
+      id: `NOTIF-${Date.now()}`,
+      targetRole: "APPROVER",
+      title: "New Bulk Travel Booking Logged",
+      message: `Travel Desk logged mass travel for ${headcount} people to ${newRecord.destination} (${newRecord.groupReference}). Total cost: ₹${totalCost.toLocaleString("en-IN")}.`,
+      type: "BOOKING",
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
+    _saveAllSystemNotifications([newNotif, ...notifs]);
+
+    return newRecord;
+  },
+  update: async (id: string, payload: Partial<BulkBookingRecord>): Promise<BulkBookingRecord> => {
+    const current = _getAllSystemBulkBookings();
+    const existing = current.find((b) => b.id === id);
+    if (!existing) throw new Error("Bulk booking record not found.");
+    const headcount = payload.headcount !== undefined ? Number(payload.headcount) : existing.headcount;
+    const totalCost = payload.totalCost !== undefined ? Number(payload.totalCost) : existing.totalCost;
+    const costPerPerson = headcount > 0 ? Math.round(totalCost / headcount) : totalCost;
+    const updatedRecord: BulkBookingRecord = { ...existing, ...payload, headcount, totalCost, costPerPerson };
+    const updated = current.map((b) => (b.id === id ? updatedRecord : b));
+    _saveAllSystemBulkBookings(updated);
+    return updatedRecord;
+  },
+  reviewByApprover: async (id: string, status: "APPROVED" | "NOTED", comment: string): Promise<BulkBookingRecord> => {
+    const current = _getAllSystemBulkBookings();
+    const existing = current.find((b) => b.id === id);
+    if (!existing) throw new Error("Bulk booking record not found.");
+    const updatedRecord: BulkBookingRecord = {
+      ...existing,
+      approverStatus: status,
+      approverComment: comment,
+      approverReviewedAt: new Date().toISOString(),
+    };
+    const updated = current.map((b) => (b.id === id ? updatedRecord : b));
+    _saveAllSystemBulkBookings(updated);
+
+    // Notify Travel Desk of approver review
+    const notifs = _getAllSystemNotifications();
+    const newNotif = {
+      id: `NOTIF-${Date.now()}`,
+      targetRole: "TRAVEL_DESK",
+      title: `Bulk Booking ${status === "APPROVED" ? "Approved" : "Reviewed"}`,
+      message: `Approver signed off on bulk movement ${id} (${updatedRecord.title}). Decision: ${status}. Comment: "${comment || "Acknowledged"}".`,
+      type: "APPROVAL",
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
+    _saveAllSystemNotifications([newNotif, ...notifs]);
+
+    return updatedRecord;
+  },
+  delete: async (id: string) => {
+    const current = _getAllSystemBulkBookings();
+    _saveAllSystemBulkBookings(current.filter((b) => b.id !== id));
+    return { success: true };
   },
 };
 
