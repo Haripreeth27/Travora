@@ -398,6 +398,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const body = await response.text();
+  const isHtml = (response.headers.get("content-type") || "").includes("text/html") || body.trim().startsWith("<!doctype") || body.trim().startsWith("<!DOCTYPE") || body.trim().startsWith("<html");
+  if (isHtml) {
+    throw new Error("Travora backend server not reached (HTML fallback).");
+  }
   let data: unknown = null;
   try { data = body ? JSON.parse(body) : null; } catch { data = body || null; }
   if (response.status === 401) {
@@ -558,11 +562,18 @@ export function persistAuth(user: AuthUser) {
 function _sanitizeLocalStorage() {
   if (!hasStorage()) return;
   try {
-    const SANITIZE_VERSION = "travora_v4_clean";
+    const SANITIZE_VERSION = "travora_v6_sync_clean";
     if (window.localStorage.getItem(SANITIZE_VERSION) === "true") return;
+
+    // Reset legacy bulk bookings so they take the updated clean approved state
+    const currentBulk = window.localStorage.getItem(SYSTEM_BULK_BOOKINGS_KEY);
+    if (currentBulk && currentBulk.includes('"PENDING_REVIEW"')) {
+      window.localStorage.removeItem(SYSTEM_BULK_BOOKINGS_KEY);
+    }
 
     // Remove legacy unnamespaced and migrated keys
     const LEGACY_KEYS = [
+      "travora_v4_clean",
       "travora_migration_done",
       "travora_local_requests",
       "travora_local_bookings",
@@ -762,6 +773,152 @@ function _saveAllSystemNotifications(notifs: any[]) {
   }
 }
 
+/**
+ * ─── REAL-TIME MULTI-DEVICE CLOUD SYNCHRONIZATION ───
+ * Uses pub/sub to keep all shared browsers and devices in sync in real time.
+ */
+const SYNC_TOPIC = "travora_live_corp_sync_v6";
+const SYNC_URL = `https://ntfy.sh/${SYNC_TOPIC}`;
+
+export async function broadcastCloudSync(action: string, payload: any) {
+  if (typeof window === "undefined") return;
+  try {
+    const body = JSON.stringify({
+      action,
+      payload,
+      timestamp: Date.now(),
+    });
+    fetch(SYNC_URL, {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/json" },
+    }).catch(() => {});
+  } catch {}
+}
+
+export function handleIncomingCloudSync(msg: any) {
+  if (!msg || !msg.action) return;
+  try {
+    const { action, payload } = msg;
+    if (action === "CREATE_REQUEST" || action === "UPDATE_REQUEST") {
+      const all = _getAllSystemRequests();
+      const idx = all.findIndex((r) => String(r.id) === String(payload.id));
+      if (idx >= 0) all[idx] = payload;
+      else all.unshift(payload);
+      _saveAllSystemRequests(all);
+    } else if (action === "DELETE_REQUEST") {
+      markRequestIdsDeleted([payload.id]);
+    } else if (action === "CREATE_BULK" || action === "UPDATE_BULK" || action === "REVIEW_BULK") {
+      const all = _getAllSystemBulkBookings();
+      const idx = all.findIndex((b) => String(b.id) === String(payload.id));
+      if (idx >= 0) all[idx] = payload;
+      else all.unshift(payload);
+      _saveAllSystemBulkBookings(all);
+    } else if (action === "DELETE_BULK") {
+      const all = _getAllSystemBulkBookings().filter((b) => b.id !== payload.id);
+      _saveAllSystemBulkBookings(all);
+    } else if (action === "CREATE_BOOKING" || action === "UPDATE_BOOKING" || action === "CANCEL_BOOKING") {
+      const all = _getAllSystemBookings();
+      const idx = all.findIndex((b) => String(b.id) === String(payload.id));
+      if (idx >= 0) all[idx] = payload;
+      else all.unshift(payload);
+      _saveAllSystemBookings(all);
+    }
+    window.dispatchEvent(new CustomEvent("travora_cloud_synced", { detail: msg }));
+  } catch (e) {
+    console.warn("Failed to apply incoming cloud sync", e);
+  }
+}
+
+let _cloudSyncStarted = false;
+export function initCloudSync() {
+  if (typeof window === "undefined" || _cloudSyncStarted) return;
+  _cloudSyncStarted = true;
+
+  try {
+    const since = Math.floor(Date.now() / 1000) - 3600;
+    fetch(`${SYNC_URL}/json?poll=1&since=${since}`)
+      .then((res) => res.text())
+      .then((text) => {
+        const lines = text.trim().split("\n");
+        lines.forEach((line) => {
+          try {
+            const data = JSON.parse(line);
+            if (data?.message) {
+              const parsed = JSON.parse(data.message);
+              handleIncomingCloudSync(parsed);
+            }
+          } catch {}
+        });
+      })
+      .catch(() => {});
+  } catch {}
+
+  try {
+    if (typeof EventSource !== "undefined") {
+      const es = new EventSource(`${SYNC_URL}/sse`);
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.message) {
+            const parsed = JSON.parse(data.message);
+            handleIncomingCloudSync(parsed);
+          }
+        } catch {}
+      };
+    }
+  } catch {}
+
+  window.addEventListener("focus", () => {
+    try {
+      const since = Math.floor(Date.now() / 1000) - 300;
+      fetch(`${SYNC_URL}/json?poll=1&since=${since}`)
+        .then((res) => res.text())
+        .then((text) => {
+          const lines = text.trim().split("\n");
+          lines.forEach((line) => {
+            try {
+              const data = JSON.parse(line);
+              if (data?.message) {
+                const parsed = JSON.parse(data.message);
+                handleIncomingCloudSync(parsed);
+              }
+            } catch {}
+          });
+        })
+        .catch(() => {});
+    } catch {}
+  });
+}
+
+export async function manualCloudSync(): Promise<{ success: boolean; count: number }> {
+  try {
+    const since = Math.floor(Date.now() / 1000) - 7200;
+    const res = await fetch(`${SYNC_URL}/json?poll=1&since=${since}`);
+    const text = await res.text();
+    let applied = 0;
+    const lines = text.trim().split("\n");
+    lines.forEach((line) => {
+      try {
+        const data = JSON.parse(line);
+        if (data?.message) {
+          const parsed = JSON.parse(data.message);
+          handleIncomingCloudSync(parsed);
+          applied++;
+        }
+      } catch {}
+    });
+    window.dispatchEvent(new CustomEvent("travora_cloud_synced"));
+    return { success: true, count: applied };
+  } catch (err) {
+    return { success: false, count: 0 };
+  }
+}
+
+if (typeof window !== "undefined") {
+  initCloudSync();
+}
+
 export type BulkBookingPassenger = {
   name: string;
   employeeId?: string;
@@ -860,7 +1017,9 @@ const DEFAULT_BULK_BOOKINGS: BulkBookingRecord[] = [
     coordinatorName: "Central Travel Desk",
     loggedAt: "2026-10-11T12:00:00.000Z",
     status: "CONFIRMED",
-    approverStatus: "PENDING_REVIEW",
+    approverStatus: "APPROVED",
+    approverComment: "Summit travel approved by corporate approver.",
+    approverReviewedAt: "2026-10-11T16:00:00.000Z",
   }
 ];
 
@@ -976,6 +1135,7 @@ export const travelRequestsApi = {
 
     const current = _getAllSystemRequests();
     _saveAllSystemRequests([newReq, ...current]);
+    broadcastCloudSync("CREATE_REQUEST", newReq);
 
     // Send notifications
     const notifs = _getAllSystemNotifications();
@@ -1021,6 +1181,7 @@ export const travelRequestsApi = {
       return r;
     });
     _saveAllSystemRequests(updated);
+    if (targetReq) broadcastCloudSync("UPDATE_REQUEST", targetReq);
 
     // Notify the employee & travel desk
     if (targetReq) {
@@ -1072,6 +1233,7 @@ export const travelRequestsApi = {
       return r;
     });
     _saveAllSystemRequests(updated);
+    if (targetReq) broadcastCloudSync("UPDATE_REQUEST", targetReq);
 
     if (targetReq) {
       const notifs = _getAllSystemNotifications();
@@ -1113,6 +1275,7 @@ export const travelRequestsApi = {
 
     markRequestIdsDeleted([strId]);
     _saveAllSystemRequests(all.filter((r) => String(r.id) !== strId));
+    broadcastCloudSync("DELETE_REQUEST", { id: strId });
 
     // Also remove linked bookings
     const bookings = _getAllSystemBookings();
@@ -1299,6 +1462,7 @@ export const bookingsApi = {
 
     const currentBookings = _getAllSystemBookings();
     _saveAllSystemBookings([newBooking, ...currentBookings]);
+    broadcastCloudSync("CREATE_BOOKING", newBooking);
 
     // Update travel request status to BOOKED
     const currentReqs = _getAllSystemRequests();
@@ -1333,6 +1497,7 @@ export const bookingsApi = {
     const current = _getAllSystemBookings();
     const updated = current.map((b) => (String(b.id) === String(id) ? { ...b, ...payload } : b));
     _saveAllSystemBookings(updated);
+    broadcastCloudSync("UPDATE_BOOKING", { id, ...payload });
     try {
       await apiRequest(`/api/bookings/${id}`, { method: "PUT", body: JSON.stringify(payload), ignoreAuthFailure: true });
     } catch {
@@ -1538,6 +1703,7 @@ export const bulkBookingsApi = {
 
     const current = _getAllSystemBulkBookings();
     _saveAllSystemBulkBookings([newRecord, ...current]);
+    broadcastCloudSync("CREATE_BULK", newRecord);
 
     // Send notification to Approver
     const notifs = _getAllSystemNotifications();
@@ -1564,6 +1730,7 @@ export const bulkBookingsApi = {
     const updatedRecord: BulkBookingRecord = { ...existing, ...payload, headcount, totalCost, costPerPerson };
     const updated = current.map((b) => (b.id === id ? updatedRecord : b));
     _saveAllSystemBulkBookings(updated);
+    broadcastCloudSync("UPDATE_BULK", updatedRecord);
     return updatedRecord;
   },
   reviewByApprover: async (id: string, status: "APPROVED" | "NOTED", comment: string): Promise<BulkBookingRecord> => {
@@ -1578,6 +1745,7 @@ export const bulkBookingsApi = {
     };
     const updated = current.map((b) => (b.id === id ? updatedRecord : b));
     _saveAllSystemBulkBookings(updated);
+    broadcastCloudSync("REVIEW_BULK", updatedRecord);
 
     // Notify Travel Desk of approver review
     const notifs = _getAllSystemNotifications();
@@ -1597,6 +1765,7 @@ export const bulkBookingsApi = {
   delete: async (id: string) => {
     const current = _getAllSystemBulkBookings();
     _saveAllSystemBulkBookings(current.filter((b) => b.id !== id));
+    broadcastCloudSync("DELETE_BULK", { id });
     return { success: true };
   },
 };

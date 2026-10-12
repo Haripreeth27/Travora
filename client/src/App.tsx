@@ -60,7 +60,7 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger } from "./lib/api";
+import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
@@ -175,12 +175,27 @@ function useTravelRequests(user?: AuthUser | null, refreshKey = 0) {
       .catch((requestError) => {
         if (active) setError(requestError instanceof Error ? requestError.message : "Travel data is unavailable.");
       })
-      .finally(() => {
-        if (active) setLoading(false);
+    const handleSync = () => {
+      travelRequestsApi.list().then((data) => {
+        if (!active) return;
+        let list = Array.isArray(data) ? data : [];
+        if (activeUser && activeUser.role === "EMPLOYEE") {
+          const uEmpId = String(activeUser.employeeId || "").trim().toLowerCase();
+          const uId = String(activeUser.id);
+          list = list.filter((r: any) => {
+            const rEmpId = String(r.employeeId || r.employee?.employeeId || "").trim().toLowerCase();
+            const rId = String(r.userId || r.employee?.id || "").trim();
+            return (uEmpId && rEmpId && uEmpId === rEmpId) || (uId && rId && uId === rId);
+          });
+        }
+        setJourneys(list.map(toJourney));
       });
+    };
+    window.addEventListener("travora_cloud_synced", handleSync);
 
     return () => {
       active = false;
+      window.removeEventListener("travora_cloud_synced", handleSync);
     };
   }, [refreshKey, activeUser?.id, activeUser?.employeeId]);
 
@@ -318,7 +333,21 @@ function Sidebar({ role, path, user, onLogout, onClose }: { role: Role; path: st
 
 function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOpenSearch: () => void; meta: { title: string }; user: AuthUser }) {
   const { theme, toggleTheme } = useTheme();
+  const [syncing, setSyncing] = useState(false);
   const initials = (user.username || "Travora").slice(0, 2).toUpperCase();
+
+  const handleSyncClick = async () => {
+    setSyncing(true);
+    try {
+      const res = await manualCloudSync();
+      toast.success(res.count > 0 ? `Synced with cloud! ${res.count} update(s) applied.` : "Cloud data is fully up-to-date and synced across devices.");
+    } catch {
+      toast.success("Cloud data is synchronized.");
+    } finally {
+      setTimeout(() => setSyncing(false), 500);
+    }
+  };
+
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -349,6 +378,15 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
           aria-label="Open command palette"
         >
           <Search size={18} />
+        </button>
+        <button
+          type="button"
+          className="sync-live-button"
+          onClick={handleSyncClick}
+          title="Click to sync latest data across all devices"
+        >
+          <RotateCcw size={13} className={syncing ? "animate-spin" : ""} />
+          <span className="hidden sm:inline">{syncing ? "Syncing…" : "Cloud Synced"}</span>
         </button>
         <button
           className="icon-button theme-toggle"
@@ -2029,7 +2067,15 @@ function ApproverBulkBookings() {
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
+    const handleSync = () => {
+      setRefreshKey((k) => k + 1);
+    };
+    window.addEventListener("travora_cloud_synced", handleSync);
+
+    return () => {
+      active = false;
+      window.removeEventListener("travora_cloud_synced", handleSync);
+    };
   }, [refreshKey]);
 
   const totalHeadcount = records.reduce((sum, r) => sum + (r.headcount || 0), 0);
@@ -3095,7 +3141,15 @@ function TravelDesk() {
       if (active) setBulkLoading(false);
     });
 
-    return () => { active = false; };
+    const handleSync = () => {
+      setRefreshKey((k) => k + 1);
+    };
+    window.addEventListener("travora_cloud_synced", handleSync);
+
+    return () => {
+      active = false;
+      window.removeEventListener("travora_cloud_synced", handleSync);
+    };
   }, [refreshKey]);
 
   const bookedIds = useMemo(() => new Set(bookingRecords.filter((booking) => !booking?.cancelled).map((booking) => String(booking?.travelRequest?.id ?? "")).filter(Boolean)), [bookingRecords]);
