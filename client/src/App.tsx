@@ -1762,7 +1762,22 @@ function GroupManifestModal({
   const [passengerSearch, setPassengerSearch] = useState("");
   const [approverComment, setApproverComment] = useState(booking.approverComment || "");
   const [reviewing, setReviewing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentBooking, setCurrentBooking] = useState<BulkBookingRecord>(booking);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await bulkBookingsApi.delete(currentBooking.id);
+      toast.success(`Bulk booking ${currentBooking.groupReference} deleted.`);
+      if (onUpdate) onUpdate();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete bulk booking.");
+      setDeleting(false);
+    }
+  };
 
   const manifest = currentBooking.passengerList || [];
   const filteredManifest = useMemo(() => {
@@ -2034,11 +2049,30 @@ function GroupManifestModal({
           </div>
         </div>
 
-        <div className="dialog-actions" style={{ marginTop: 22 }}>
+        <div className="dialog-actions" style={{ marginTop: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button
+            type="button"
+            className="button button-ghost"
+            style={{ color: "var(--red)", borderColor: "rgba(239, 68, 68, 0.3)" }}
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleting}
+          >
+            <Trash2 size={14} /> Delete Bulk Booking
+          </button>
           <button type="button" className="button button-primary" onClick={onClose}>
             Done / Close Voucher
           </button>
         </div>
+
+        {showDeleteConfirm && (
+          <DeleteConfirmDialog
+            title={`Delete bulk booking ${currentBooking.groupReference}?`}
+            description={`Permanently remove "${currentBooking.title}" for ${currentBooking.headcount} travelers to ${currentBooking.destination}? This will delete it across all dashboards.`}
+            confirmLabel={deleting ? "Deleting..." : "Delete Bulk Booking"}
+            onConfirm={handleDelete}
+            onClose={() => setShowDeleteConfirm(false)}
+          />
+        )}
       </div>
     </div>
   );
@@ -2051,6 +2085,7 @@ function ApproverBulkBookings() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING_REVIEW" | "APPROVED">("ALL");
   const [selectedRecord, setSelectedRecord] = useState<BulkBookingRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<BulkBookingRecord | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -2239,14 +2274,24 @@ function ApproverBulkBookings() {
                       )}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="table-action"
-                        style={{ color: "var(--blue)", fontWeight: 700 }}
-                        onClick={() => setSelectedRecord(record)}
-                      >
-                        Inspect Manifest & Sign Off <ArrowUpRight size={14} />
-                      </button>
+                      <div className="table-inline-actions">
+                        <button
+                          type="button"
+                          className="table-action"
+                          style={{ color: "var(--blue)", fontWeight: 700 }}
+                          onClick={() => setSelectedRecord(record)}
+                        >
+                          Inspect Manifest & Sign Off <ArrowUpRight size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="table-action table-action-danger"
+                          title="Delete bulk booking"
+                          onClick={() => setDeletingRecord(record)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -2268,6 +2313,20 @@ function ApproverBulkBookings() {
           isApprover={true}
           onClose={() => setSelectedRecord(null)}
           onUpdate={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
+      {deletingRecord && (
+        <DeleteConfirmDialog
+          title={`Delete bulk booking ${deletingRecord.groupReference}?`}
+          description={`Permanently remove group movement "${deletingRecord.title}" for ${deletingRecord.headcount} travelers to ${deletingRecord.destination}?`}
+          confirmLabel="Delete bulk booking"
+          onConfirm={async () => {
+            await bulkBookingsApi.delete(deletingRecord.id);
+            setRecords((prev) => prev.filter((r) => r.id !== deletingRecord.id));
+            toast.success(`Bulk booking ${deletingRecord.groupReference} deleted.`);
+            setRefreshKey((k) => k + 1);
+          }}
+          onClose={() => setDeletingRecord(null)}
         />
       )}
     </div>
@@ -3882,7 +3941,7 @@ function TravelDesk() {
                   Bulk & Group Travel Bookings ({totalBulkHeadcount} Travelers Coordinated)
                 </div>
                 <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                  {bulkBookings.length} mass movements logged (e.g. 100-person site commissioning to Jamnagar). Shared with Approver.
+                  {bulkBookings.length} mass movements logged · Live roster shared with Approver.
                 </div>
               </div>
             </div>
@@ -4176,6 +4235,7 @@ function TravelDesk() {
           confirmLabel="Delete bulk booking"
           onConfirm={async () => {
             await bulkBookingsApi.delete(deletingBulkRecord.id);
+            setBulkBookings((prev) => prev.filter((b) => b.id !== deletingBulkRecord.id));
             toast.success(`Bulk booking ${deletingBulkRecord.groupReference} deleted.`);
             setRefreshKey((k) => k + 1);
           }}

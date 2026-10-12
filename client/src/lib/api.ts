@@ -555,25 +555,126 @@ export function persistAuth(user: AuthUser) {
 }
 
 /**
+ * ─── UNIFIED SYSTEM STORAGE KEYS & TOMBSTONES ───
+ */
+const SYSTEM_REQUESTS_KEY = "travora_system_requests";
+const SYSTEM_BOOKINGS_KEY = "travora_system_bookings";
+const SYSTEM_BULK_BOOKINGS_KEY = "travora_system_bulk_bookings_v1";
+const SYSTEM_NOTIFICATIONS_KEY = "travora_system_notifications";
+const DELETED_REQUESTS_KEY = "travora_deleted_request_ids";
+const DELETED_BOOKINGS_KEY = "travora_deleted_booking_ids";
+const DELETED_BULK_BOOKINGS_KEY = "travora_deleted_bulk_booking_ids";
+
+export function getDeletedRequestIds(): Set<string> {
+  if (!hasStorage()) return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_REQUESTS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map(String));
+    }
+  } catch (e) {
+    console.warn("Failed to read deleted request ids", e);
+  }
+  return new Set();
+}
+
+export function markRequestIdsDeleted(ids: Array<string | number>) {
+  if (!hasStorage()) return;
+  try {
+    const set = getDeletedRequestIds();
+    ids.forEach((id) => {
+      if (id !== undefined && id !== null) set.add(String(id));
+    });
+    window.localStorage.setItem(DELETED_REQUESTS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn("Failed to save deleted request ids", e);
+  }
+}
+
+export function getDeletedBookingIds(): Set<string> {
+  if (!hasStorage()) return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_BOOKINGS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map(String));
+    }
+  } catch (e) {
+    console.warn("Failed to read deleted booking ids", e);
+  }
+  return new Set();
+}
+
+export function markBookingIdsDeleted(ids: Array<string | number>) {
+  if (!hasStorage()) return;
+  try {
+    const set = getDeletedBookingIds();
+    ids.forEach((id) => {
+      if (id !== undefined && id !== null) set.add(String(id));
+    });
+    window.localStorage.setItem(DELETED_BOOKINGS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn("Failed to save deleted booking ids", e);
+  }
+}
+
+export function getDeletedBulkBookingIds(): Set<string> {
+  if (!hasStorage()) return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_BULK_BOOKINGS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map(String));
+    }
+  } catch (e) {
+    console.warn("Failed to read deleted bulk booking ids", e);
+  }
+  return new Set();
+}
+
+export function markBulkBookingIdsDeleted(ids: Array<string | number>) {
+  if (!hasStorage()) return;
+  try {
+    const set = getDeletedBulkBookingIds();
+    ids.forEach((id) => {
+      if (id !== undefined && id !== null) set.add(String(id));
+    });
+    window.localStorage.setItem(DELETED_BULK_BOOKINGS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn("Failed to save deleted bulk booking ids", e);
+  }
+}
+
+/**
  * ─── LEGACY DATA PURGE & SANITIZATION ───
- * Runs immediately on startup to remove legacy demo trips (Arjun Mehta, EMP-2026,
- * TR-9021..9024, Singapore/Delhi mock records) that contaminated users' localStorage.
+ * Runs immediately on startup to remove legacy demo trips and default bulk records.
  */
 function _sanitizeLocalStorage() {
   if (!hasStorage()) return;
   try {
-    const SANITIZE_VERSION = "travora_v6_sync_clean";
+    const SANITIZE_VERSION = "travora_v7_no_bulk_defaults";
     if (window.localStorage.getItem(SANITIZE_VERSION) === "true") return;
 
-    // Reset legacy bulk bookings so they take the updated clean approved state
+    // Permanently tombstone and purge default mock bulk bookings (GRP-BK-101 and GRP-BK-102)
+    markBulkBookingIdsDeleted(["GRP-BK-101", "GRP-BK-102"]);
     const currentBulk = window.localStorage.getItem(SYSTEM_BULK_BOOKINGS_KEY);
-    if (currentBulk && currentBulk.includes('"PENDING_REVIEW"')) {
-      window.localStorage.removeItem(SYSTEM_BULK_BOOKINGS_KEY);
+    if (currentBulk) {
+      try {
+        const parsed = JSON.parse(currentBulk);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((b) => b && b.id !== "GRP-BK-101" && b.id !== "GRP-BK-102");
+          window.localStorage.setItem(SYSTEM_BULK_BOOKINGS_KEY, JSON.stringify(filtered));
+        }
+      } catch {
+        window.localStorage.removeItem(SYSTEM_BULK_BOOKINGS_KEY);
+      }
     }
 
     // Remove legacy unnamespaced and migrated keys
     const LEGACY_KEYS = [
       "travora_v4_clean",
+      "travora_v6_sync_clean",
       "travora_migration_done",
       "travora_local_requests",
       "travora_local_bookings",
@@ -633,67 +734,6 @@ _sanitizeLocalStorage();
  * 3. TRAVEL_DESK: Can see all approved requests to book tickets & attach PNRs.
  * 4. ADMIN: Can view all requests and bookings across the organization.
  */
-
-const SYSTEM_REQUESTS_KEY = "travora_system_requests";
-const SYSTEM_BOOKINGS_KEY = "travora_system_bookings";
-const SYSTEM_BULK_BOOKINGS_KEY = "travora_system_bulk_bookings_v1";
-const SYSTEM_NOTIFICATIONS_KEY = "travora_system_notifications";
-const DELETED_REQUESTS_KEY = "travora_deleted_request_ids";
-const DELETED_BOOKINGS_KEY = "travora_deleted_booking_ids";
-
-export function getDeletedRequestIds(): Set<string> {
-  if (!hasStorage()) return new Set();
-  try {
-    const raw = window.localStorage.getItem(DELETED_REQUESTS_KEY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return new Set(arr.map(String));
-    }
-  } catch (e) {
-    console.warn("Failed to read deleted request ids", e);
-  }
-  return new Set();
-}
-
-export function markRequestIdsDeleted(ids: Array<string | number>) {
-  if (!hasStorage()) return;
-  try {
-    const set = getDeletedRequestIds();
-    ids.forEach((id) => {
-      if (id !== undefined && id !== null) set.add(String(id));
-    });
-    window.localStorage.setItem(DELETED_REQUESTS_KEY, JSON.stringify(Array.from(set)));
-  } catch (e) {
-    console.warn("Failed to save deleted request ids", e);
-  }
-}
-
-export function getDeletedBookingIds(): Set<string> {
-  if (!hasStorage()) return new Set();
-  try {
-    const raw = window.localStorage.getItem(DELETED_BOOKINGS_KEY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return new Set(arr.map(String));
-    }
-  } catch (e) {
-    console.warn("Failed to read deleted booking ids", e);
-  }
-  return new Set();
-}
-
-export function markBookingIdsDeleted(ids: Array<string | number>) {
-  if (!hasStorage()) return;
-  try {
-    const set = getDeletedBookingIds();
-    ids.forEach((id) => {
-      if (id !== undefined && id !== null) set.add(String(id));
-    });
-    window.localStorage.setItem(DELETED_BOOKINGS_KEY, JSON.stringify(Array.from(set)));
-  } catch (e) {
-    console.warn("Failed to save deleted booking ids", e);
-  }
-}
 
 function _getAllSystemRequests(): any[] {
   if (!hasStorage()) return [];
@@ -809,13 +849,17 @@ export function handleIncomingCloudSync(msg: any) {
     } else if (action === "DELETE_REQUEST") {
       markRequestIdsDeleted([payload.id]);
     } else if (action === "CREATE_BULK" || action === "UPDATE_BULK" || action === "REVIEW_BULK") {
-      const all = _getAllSystemBulkBookings();
-      const idx = all.findIndex((b) => String(b.id) === String(payload.id));
-      if (idx >= 0) all[idx] = payload;
-      else all.unshift(payload);
-      _saveAllSystemBulkBookings(all);
+      const deletedBulk = getDeletedBulkBookingIds();
+      if (!deletedBulk.has(String(payload.id))) {
+        const all = _getAllSystemBulkBookings();
+        const idx = all.findIndex((b) => String(b.id) === String(payload.id));
+        if (idx >= 0) all[idx] = payload;
+        else all.unshift(payload);
+        _saveAllSystemBulkBookings(all);
+      }
     } else if (action === "DELETE_BULK") {
-      const all = _getAllSystemBulkBookings().filter((b) => b.id !== payload.id);
+      markBulkBookingIdsDeleted([payload.id]);
+      const all = _getAllSystemBulkBookings().filter((b) => String(b.id) !== String(payload.id));
       _saveAllSystemBulkBookings(all);
     } else if (action === "CREATE_BOOKING" || action === "UPDATE_BOOKING" || action === "CANCEL_BOOKING") {
       const all = _getAllSystemBookings();
@@ -956,92 +1000,31 @@ export type BulkBookingRecord = {
   attachmentData?: string;
 };
 
-const DEFAULT_BULK_BOOKINGS: BulkBookingRecord[] = [
-  {
-    id: "GRP-BK-101",
-    title: "Jamnagar Petrochem Site Commissioning - 100 Engineers",
-    destination: "Jamnagar",
-    fromLocation: "Hyderabad",
-    travelDates: "20 Oct 2026 – 28 Oct 2026",
-    departureDate: "2026-10-20",
-    returnDate: "2026-10-28",
-    travelMode: "FLIGHT",
-    provider: "IndiGo Corporate Group Desk",
-    groupReference: "GRP-6E-98421",
-    headcount: 100,
-    totalCost: 850000,
-    costPerPerson: 8500,
-    savings: 125000,
-    project: "Apollo Phase II Commissioning",
-    departments: ["Field Engineering", "Site Operations", "Instrumentation", "Safety & HSE"],
-    passengerManifestSummary: "100 Field Engineers, Site Supervisors & HSE Specialists deployed for refinery turnaround.",
-    passengerList: [
-      { name: "Suresh Babu Dangeti", employeeId: "AGR0001", department: "Petroleum Operations", seatOrCoach: "Block 1A-14F" },
-      { name: "Ganesh Kakarla", employeeId: "AGR0003", department: "Site Operations", seatOrCoach: "Block 1A-14F" },
-      { name: "Vijaya Kumar Bgam", employeeId: "MISPL0014", department: "Project Engineering", seatOrCoach: "Block 1A-14F" },
-      { name: "P Satheesh", employeeId: "MISPL0016", department: "Field Engineering", seatOrCoach: "Block 1A-14F" },
-      { name: "G Yathish Sai Krishna Posi", employeeId: "MISPL0402", department: "Instrumentation", seatOrCoach: "Block 1A-14F" },
-      { name: "Rammohan Gubbala", employeeId: "MISPL0423", department: "Safety & HSE", seatOrCoach: "Block 1A-14F" },
-      { name: "Uppu Durga Rao", employeeId: "MISPL0429", department: "Piping Engineering", seatOrCoach: "Block 1A-14F" },
-      { name: "Dileep Kumar Gode", employeeId: "MISPL0440", department: "Maintenance & Reliability", seatOrCoach: "Block 1A-14F" },
-      { name: "Panthangi Shashidhar", employeeId: "MISPL0466", department: "Operations Coordination", seatOrCoach: "Block 1A-14F" },
-      { name: "+ 91 Additional Site Engineers & Technicians", employeeId: "EMP-GROUP-91", department: "Engineering & Field Crew", seatOrCoach: "Confirmed Charter Block" }
-    ],
-    itineraryNotes: "Charter coach boarding from Rajiv Gandhi Intl Airport Terminal 3 Gate 4 at 05:30 AM. Unified check-in counter arranged. Group baggage tag code: APOLLO-JMN.",
-    coordinatorName: "Central Travel Desk",
-    loggedAt: "2026-10-10T10:30:00.000Z",
-    status: "CONFIRMED",
-    approverStatus: "APPROVED",
-    approverComment: "Approved mass movement for Apollo commissioning team. Cost within project capital budget.",
-    approverReviewedAt: "2026-10-10T14:15:00.000Z",
-  },
-  {
-    id: "GRP-BK-102",
-    title: "Q4 Engineering & Technology Annual Summit",
-    destination: "Bengaluru",
-    fromLocation: "Visakhapatnam",
-    travelDates: "05 Nov 2026 – 08 Nov 2026",
-    departureDate: "2026-11-05",
-    returnDate: "2026-11-08",
-    travelMode: "TRAIN",
-    provider: "IRCTC Special Dedicated AC Coach",
-    groupReference: "IRCTC-COACH-7B-902",
-    headcount: 45,
-    totalCost: 157500,
-    costPerPerson: 3500,
-    savings: 38000,
-    project: "Corporate Technology Summit",
-    departments: ["Technology & Systems", "Design & Drafting", "Quality Assurance"],
-    passengerManifestSummary: "45 Technology & Design engineers attending annual technical summit.",
-    itineraryNotes: "Dedicated AC 2-Tier Coach B1 & B2 attached to train 12845. Packed meals arranged.",
-    coordinatorName: "Central Travel Desk",
-    loggedAt: "2026-10-11T12:00:00.000Z",
-    status: "CONFIRMED",
-    approverStatus: "APPROVED",
-    approverComment: "Summit travel approved by corporate approver.",
-    approverReviewedAt: "2026-10-11T16:00:00.000Z",
-  }
-];
+const DEFAULT_BULK_BOOKINGS: BulkBookingRecord[] = [];
 
 function _getAllSystemBulkBookings(): BulkBookingRecord[] {
-  if (!hasStorage()) return DEFAULT_BULK_BOOKINGS;
+  if (!hasStorage()) return [];
+  const deletedIds = getDeletedBulkBookingIds();
   try {
     const raw = window.localStorage.getItem(SYSTEM_BULK_BOOKINGS_KEY);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((b) => b && b.id && !deletedIds.has(String(b.id)));
+      }
     }
   } catch (e) {
     console.warn("Failed to load system bulk bookings", e);
   }
-  _saveAllSystemBulkBookings(DEFAULT_BULK_BOOKINGS);
-  return DEFAULT_BULK_BOOKINGS;
+  return [];
 }
 
 function _saveAllSystemBulkBookings(bookings: BulkBookingRecord[]) {
   if (!hasStorage()) return;
   try {
-    window.localStorage.setItem(SYSTEM_BULK_BOOKINGS_KEY, JSON.stringify(bookings));
+    const deletedIds = getDeletedBulkBookingIds();
+    const clean = bookings.filter((b) => b && b.id && !deletedIds.has(String(b.id)));
+    window.localStorage.setItem(SYSTEM_BULK_BOOKINGS_KEY, JSON.stringify(clean));
   } catch (e) {
     console.warn("Failed to save system bulk bookings", e);
   }
@@ -1763,9 +1746,11 @@ export const bulkBookingsApi = {
     return updatedRecord;
   },
   delete: async (id: string) => {
+    const strId = String(id);
+    markBulkBookingIdsDeleted([strId]);
     const current = _getAllSystemBulkBookings();
-    _saveAllSystemBulkBookings(current.filter((b) => b.id !== id));
-    broadcastCloudSync("DELETE_BULK", { id });
+    _saveAllSystemBulkBookings(current.filter((b) => String(b.id) !== strId));
+    broadcastCloudSync("DELETE_BULK", { id: strId });
     return { success: true };
   },
 };
