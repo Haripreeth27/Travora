@@ -40,8 +40,20 @@ import {
   Upload,
   Image as ImageIcon,
   AlertCircle,
+  AlertTriangle,
   Trash2,
   RotateCcw,
+  Printer,
+  Train,
+  Car,
+  Building2,
+  Bus,
+  Zap,
+  TrendingUp,
+  Send,
+  QrCode,
+  FileSpreadsheet,
+  CheckCircle2,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -1847,10 +1859,200 @@ function ConfirmDialog({ action, onClose, onConfirm }: { action: "approve" | "re
   );
 }
 
+function getDepartureUrgency(journey: Journey): { days: number | null; isUrgent: boolean; badgeText: string } {
+  const rawDate = journey.rawRequest?.travelDate;
+  if (!rawDate) return { days: null, isUrgent: false, badgeText: "" };
+  const d = new Date(rawDate);
+  if (isNaN(d.getTime())) return { days: null, isUrgent: false, badgeText: "" };
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const startTrip = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startTrip - startToday) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { days: diffDays, isUrgent: false, badgeText: "Departed" };
+  if (diffDays === 0) return { days: diffDays, isUrgent: true, badgeText: "🚨 Departing Today" };
+  if (diffDays === 1) return { days: diffDays, isUrgent: true, badgeText: "🚨 Tomorrow (<24h)" };
+  if (diffDays <= 2) return { days: diffDays, isUrgent: true, badgeText: `🚨 In ${diffDays} days (<48h)` };
+  if (diffDays <= 7) return { days: diffDays, isUrgent: false, badgeText: `In ${diffDays} days` };
+  return { days: diffDays, isUrgent: false, badgeText: "" };
+}
+
+function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking: any; onClose: () => void }) {
+  const emp = journey.employee || {
+    name: journey.passenger || "Employee",
+    employeeId: "EMP",
+    department: "General Operations",
+    designation: "Employee",
+  };
+  const isFlight = (booking?.bookingType || "").toUpperCase() === "FLIGHT";
+  const isTrain = (booking?.bookingType || "").toUpperCase() === "TRAIN";
+  const isHotel = (booking?.bookingType || "").toUpperCase() === "HOTEL";
+
+  return (
+    <div className="voucher-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="voucher-title">
+      <div className="voucher-card">
+        <div className="voucher-header-bar">
+          <div className="voucher-brand">
+            <TicketCheck size={26} className="text-emerald-400" />
+            <div>
+              <span style={{ fontSize: 10, letterSpacing: "0.08em", fontWeight: 800, textTransform: "uppercase", opacity: 0.8 }}>
+                Travora Enterprise Travel Desk
+              </span>
+              <h2 id="voucher-title" style={{ fontSize: 18, margin: 0, fontWeight: 700, color: "#fff" }}>
+                Official Travel Dispatch Voucher
+              </h2>
+            </div>
+          </div>
+          <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              className="button button-ghost"
+              style={{ color: "#fff", background: "rgba(255,255,255,0.14)", border: "none", padding: "6px 12px", fontSize: 12 }}
+              onClick={() => window.print()}
+            >
+              <Printer size={14} /> Print / PDF
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              style={{ color: "#fff", background: "rgba(255,255,255,0.14)" }}
+              onClick={onClose}
+              aria-label="Close voucher"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="voucher-body">
+          <div className="voucher-route-banner">
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Passenger & Employee
+              </span>
+              <h3 style={{ fontSize: 18, margin: "2px 0 0", color: "var(--ink)", fontWeight: 800 }}>
+                {emp.name || journey.passenger}
+              </h3>
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 11, color: "var(--ink-soft)" }}>
+                <span><strong>ID:</strong> {emp.employeeId}</span>
+                <span>•</span>
+                <span><strong>Dept:</strong> {emp.department}</span>
+                <span>•</span>
+                <span><strong>Role:</strong> {emp.designation}</span>
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}>Booking Status</span>
+              <div style={{ marginTop: 2 }}>
+                <span className="approval-pill booked"><Check size={12} /> Confirmed Ticketed</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: "16px 20px", borderRadius: 14, background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <small style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}>Origin</small>
+                <strong style={{ display: "block", fontSize: 18, color: "var(--ink)" }}>{journey.from || "HQ"}</strong>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--green)" }}>
+                <div style={{ width: 40, height: 2, background: "var(--green)" }} />
+                {isFlight ? <Plane size={18} /> : isTrain ? <Train size={18} /> : isHotel ? <Building2 size={18} /> : <Compass size={18} />}
+                <div style={{ width: 40, height: 2, background: "var(--green)" }} />
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <small style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}>Destination</small>
+                <strong style={{ display: "block", fontSize: 18, color: "var(--ink)" }}>{journey.to || journey.destination}</strong>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px dashed var(--line)", fontSize: 11, color: "var(--ink-soft)" }}>
+              <span><strong>Dates:</strong> {journey.dates}</span>
+              <span><strong>Project:</strong> {journey.project}</span>
+            </div>
+          </div>
+
+          <div className="voucher-grid">
+            <div className="voucher-meta-item">
+              <small>PNR / Booking Ref</small>
+              <strong style={{ fontSize: 15, color: "var(--green)", letterSpacing: "0.04em" }}>{booking?.bookingReference || "CONFIRMED"}</strong>
+            </div>
+            <div className="voucher-meta-item">
+              <small>Carrier / Provider</small>
+              <strong>{booking?.provider || (isFlight ? "Corporate Airline" : "Service Provider")}</strong>
+            </div>
+            <div className="voucher-meta-item">
+              <small>Booking Type</small>
+              <strong>{booking?.bookingType || "Travel Service"}</strong>
+            </div>
+            <div className="voucher-meta-item">
+              <small>Authorized Amount</small>
+              <strong>{booking?.cost !== undefined ? `₹${Number(booking.cost).toLocaleString("en-IN")}` : "Direct Corporate Bill"}</strong>
+            </div>
+            <div className="voucher-meta-item">
+              <small>Negotiated Savings</small>
+              <strong style={{ color: "var(--green)" }}>{booking?.savings ? `₹${Number(booking.savings).toLocaleString("en-IN")}` : "Corporate Tier"}</strong>
+            </div>
+            <div className="voucher-meta-item">
+              <small>Request ID</small>
+              <strong>#{journey.id}</strong>
+            </div>
+          </div>
+
+          {booking?.notes && (
+            <div style={{ padding: "12px 16px", borderRadius: 10, background: "var(--surface-soft)", border: "1px solid var(--line)", marginBottom: 20 }}>
+              <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-muted)" }}>Desk Instructions & Seat Info</small>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>{booking.notes}</p>
+            </div>
+          )}
+
+          {booking?.attachmentData && (
+            <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(59, 130, 246, 0.05)", border: "1px solid rgba(59, 130, 246, 0.2)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <FileText size={18} className="text-blue-500 shrink-0" />
+                <span style={{ fontSize: 12, fontWeight: 600 }}>Attached Ticket Document: {booking.attachmentName || "ticket.pdf"}</span>
+              </div>
+              <a
+                href={booking.attachmentData}
+                download={booking.attachmentName || "ticket_voucher"}
+                className="button button-ghost"
+                style={{ padding: "4px 10px", fontSize: 11 }}
+              >
+                <Download size={13} /> Download copy
+              </a>
+            </div>
+          )}
+
+          <div className="voucher-footer-strip">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <ShieldCheck size={24} className="text-emerald-500 shrink-0" />
+              <div>
+                <strong style={{ fontSize: 12, color: "var(--ink)" }}>Verified Corporate Travel Dispatch</strong>
+                <small style={{ display: "block", fontSize: 10, color: "var(--ink-muted)" }}>
+                  Authorized by Travora Central Travel Operations. Valid for airport/hotel check-in with employee ID.
+                </small>
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <QrCode size={36} className="text-gray-700 dark:text-gray-300" />
+            </div>
+          </div>
+
+          <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
+            <button type="button" className="button button-ghost" onClick={onClose}>Close</button>
+            <button type="button" className="button button-primary" onClick={() => window.print()}>
+              <Printer size={15} /> Print Dispatch Voucher
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TravelDesk() {
   const user = getStoredUser<AuthUser>();
   const [location] = useLocation();
   const cancellationsMode = location === "/travel-desk/cancellations";
+  const bookingsMode = location === "/travel-desk/bookings";
   const [refreshKey, setRefreshKey] = useState(0);
   const { journeys, loading, error } = useTravelRequests(user, refreshKey);
   const [bookingRecords, setBookingRecords] = useState<any[]>([]);
@@ -1860,6 +2062,12 @@ function TravelDesk() {
   const [editingBooking, setEditingBooking] = useState<any | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState<any | null>(null);
   const [deletingJourney, setDeletingJourney] = useState<Journey | null>(null);
+  const [viewingVoucher, setViewingVoucher] = useState<{ journey: Journey; booking: any } | null>(null);
+
+  // Workstation interactive filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusTab, setStatusTab] = useState<"ALL" | "URGENT" | "READY" | "PENDING" | "BOOKED">("ALL");
+  const [modeFilter, setModeFilter] = useState("ALL");
 
   useEffect(() => {
     let active = true;
@@ -1882,70 +2090,328 @@ function TravelDesk() {
   const approvedCount = rows.filter((row) => row.status === "Approved").length;
   const pendingApproverCount = rows.filter((row) => row.status === "Pending approval").length;
 
+  // Analytics & Urgent Triage Computations
+  const totalSpend = useMemo(() => activeBookings.reduce((sum, b) => sum + (Number(b.cost) || 0), 0), [activeBookings]);
+  const totalSavings = useMemo(() => activeBookings.reduce((sum, b) => sum + (Number(b.savings) || 0), 0), [activeBookings]);
+  const avgSpend = activeBookings.length ? Math.round(totalSpend / activeBookings.length) : 0;
+  const totalCancellationCharges = useMemo(() => cancelledBookings.reduce((sum, b) => sum + (Number(b.cancellationCharge) || 0), 0), [cancelledBookings]);
+
+  // Urgent departures: trips departing in <= 2 days (<48h) that are not cancelled
+  const urgentDepartures = useMemo(() => {
+    return rows.filter((row) => {
+      if (row.status === "Cancelled") return false;
+      const urgency = getDepartureUrgency(row);
+      return urgency.isUrgent;
+    });
+  }, [rows]);
+
+  // Carrier distribution calculation
+  const carrierStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    activeBookings.forEach((b) => {
+      const prov = (b.provider || b.bookingType || "Other").trim();
+      counts[prov] = (counts[prov] || 0) + 1;
+    });
+    const total = activeBookings.length || 1;
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({
+        name,
+        count,
+        pct: Math.round((count / total) * 100),
+      }));
+  }, [activeBookings]);
+
+  // Department volume breakdown
+  const departmentStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    rows.forEach((r) => {
+      const dept = r.employee?.department || "Operations";
+      counts[dept] = (counts[dept] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  }, [rows]);
+
+  // Workstation filtered list
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      const record = activeBookings.find((booking) => String(booking?.travelRequest?.id) === row.id);
+      const emp = row.employee || {};
+      const empName = (emp.name || row.passenger || "").toLowerCase();
+      const empId = (emp.employeeId || "").toLowerCase();
+      const dest = (row.destination || "").toLowerCase();
+      const from = (row.from || "").toLowerCase();
+      const to = (row.to || "").toLowerCase();
+      const proj = (row.project || "").toLowerCase();
+      const pnr = (record?.bookingReference || "").toLowerCase();
+      const provider = (record?.provider || "").toLowerCase();
+
+      // Text query match
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesQuery = empName.includes(q) || empId.includes(q) || dest.includes(q) || from.includes(q) || to.includes(q) || proj.includes(q) || pnr.includes(q) || provider.includes(q);
+        if (!matchesQuery) return false;
+      }
+
+      // Status Tab match
+      if (statusTab === "READY" && row.status !== "Approved") return false;
+      if (statusTab === "PENDING" && row.status !== "Pending approval") return false;
+      if (statusTab === "BOOKED" && row.status !== "Booked") return false;
+      if (statusTab === "URGENT") {
+        const urgency = getDepartureUrgency(row);
+        if (!urgency.isUrgent) return false;
+      }
+
+      // Mode filter match
+      if (modeFilter !== "ALL") {
+        const typeMatch = (row.tripType || "").toUpperCase().includes(modeFilter) || (record?.bookingType || "").toUpperCase() === modeFilter;
+        if (!typeMatch) return false;
+      }
+
+      return true;
+    });
+  }, [rows, activeBookings, searchQuery, statusTab, modeFilter]);
+
+  // Export passenger manifest
+  function exportPassengerManifest() {
+    const headers = [
+      "Request ID",
+      "Passenger Name",
+      "Employee ID",
+      "Department",
+      "Designation",
+      "From Location",
+      "To Location",
+      "Travel Dates",
+      "Trip Type",
+      "Project",
+      "Approver Status",
+      "Ticketing Status",
+      "PNR / Reference",
+      "Provider / Carrier",
+      "Booking Cost (INR)",
+      "Savings (INR)",
+      "Notes",
+    ];
+    const dataRows = (filteredRows.length ? filteredRows : rows).map((row) => {
+      const record = activeBookings.find((b) => String(b?.travelRequest?.id) === row.id);
+      const emp = row.employee || {};
+      return [
+        row.id,
+        emp.name || row.passenger || "",
+        emp.employeeId || "",
+        emp.department || "",
+        emp.designation || "",
+        row.from,
+        row.to,
+        row.dates,
+        row.tripType,
+        row.project,
+        row.status,
+        record ? "Confirmed Booked" : (row.status === "Approved" ? "Ready to Book" : "Pending Sign-off"),
+        record?.bookingReference || "",
+        record?.provider || "",
+        record?.cost !== undefined ? Number(record.cost) : "",
+        record?.savings !== undefined ? Number(record.savings) : "",
+        record?.notes || "",
+      ];
+    });
+    exportToCsv("travora_passenger_manifest", headers, dataRows);
+    toast.success("Passenger manifest CSV exported successfully.");
+  }
+
   async function refresh() { setRefreshKey((value) => value + 1); }
-  async function createBooking(payload: Record<string, unknown>) { await bookingsApi.create(payload); setBookingJourney(null); toast.success("Booking created. The Travel Desk queue has been refreshed."); await refresh(); }
+  async function createBooking(payload: Record<string, unknown>) { await bookingsApi.create(payload); setBookingJourney(null); toast.success("Booking created. Ticket details dispatched."); await refresh(); }
   async function updateBooking(id: string, payload: Record<string, unknown>) { await bookingsApi.update(id, payload); setEditingBooking(null); toast.success("Booking details updated."); await refresh(); }
   async function cancelBooking(id: string, reason: string, charge: number) { await bookingsApi.cancel(id, reason, charge); setCancellingBooking(null); toast.success("Booking cancelled successfully."); await refresh(); }
 
+  const currentMeta = cancellationsMode ? pageMeta["/travel-desk/cancellations"] : (bookingsMode ? pageMeta["/travel-desk/bookings"] : pageMeta["/travel-desk"]);
+
   return (
     <div className="page-stack animate-page">
-      <PageTitle meta={pageMeta[cancellationsMode ? "/travel-desk/cancellations" : "/travel-desk"]} />
+      <PageTitle meta={currentMeta} />
+
+      {/* CANCELLATIONS DESK MODE */}
       {cancellationsMode ? (
         <>
           <section className="summary-strip">
             <div>
               <span className="card-kicker">CANCELLATION DESK</span>
-              <strong>{String(activeBookings.length).padStart(2, "0")}</strong>
-              <span>active bookings</span>
+              <strong>{String(cancelledBookings.length).padStart(2, "0")}</strong>
+              <span>cancelled bookings · ₹{totalCancellationCharges.toLocaleString("en-IN")} fees recorded</span>
             </div>
             <div className="strip-icon"><XCircle size={22} /></div>
           </section>
+
           <div className="panel table-panel">
             <div className="section-title-row">
               <div>
-                <span className="card-kicker">BOOKING RECORDS</span>
-                <h2 className="section-heading">Manage cancellations</h2>
+                <span className="card-kicker">CANCELLATION WORKSTATION</span>
+                <h2 className="section-heading">Manage booking cancellations & refunds</h2>
               </div>
-              <span className="data-note"><ShieldCheck size={13} /> Live backend data</span>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Link href="/travel-desk/bookings" className="button button-ghost">
+                  <TicketCheck size={14} /> Booking queue
+                </Link>
+                <Link href="/travel-desk" className="button button-ghost">
+                  <LayoutDashboard size={14} /> Overview
+                </Link>
+              </div>
             </div>
+
             {bookingError && <div className="form-error-message"><XCircle size={15} />{bookingError}</div>}
             {bookingsLoading ? (
               <EmptyState icon={<Clock3 size={20} />} title="Loading bookings" description="Fetching booking records from Travora." />
             ) : bookingRecords.length ? (
-              <BookingTable bookings={bookingRecords} onEdit={setEditingBooking} onCancel={setCancellingBooking} />
+              <BookingTable
+                bookings={bookingRecords}
+                journeys={rows}
+                onEdit={setEditingBooking}
+                onCancel={setCancellingBooking}
+                onVoucher={(b, j) => j && setViewingVoucher({ journey: j, booking: b })}
+              />
             ) : (
               <EmptyState icon={<XCircle size={20} />} title="No booking records" description="Booking records will appear here from the backend." />
             )}
           </div>
         </>
-      ) : (
+      ) : bookingsMode ? (
+        /* DEDICATED BOOKING QUEUE WORKSTATION MODE */
         <>
-          <section className="ops-hero">
+          <div className="section-title-row" style={{ alignItems: "flex-start", marginBottom: 12 }}>
             <div>
-              <span className="card-kicker">TODAY IN OPERATIONS</span>
-              <h2>Keep the journey moving.</h2>
-              <p>Employee travel requests reach the desk immediately. Prepare bookings in advance or issue tickets once approved.</p>
-              <Link href="/travel-desk/bookings" className="button button-primary">Open booking queue <ArrowUpRight size={16} /></Link>
+              <span className="card-kicker">OPERATIONAL TICKETING WORKSTATION</span>
+              <h2 className="section-heading">Issue, Edit & Dispatch Tickets</h2>
+              <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "4px 0 0" }}>
+                Process employee travel requests, attach confirmed PNRs, issue vouchers, and export passenger manifests.
+              </p>
             </div>
-            <div className="ops-hero-metric">
-              <span>Ready to book</span>
-              <strong>{String(approvedCount).padStart(2, "0")}</strong>
-              <small>approved trips</small>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={exportPassengerManifest}
+                title="Download corporate passenger manifest for currently filtered travel requests"
+              >
+                <FileSpreadsheet size={15} /> Export Manifest (CSV)
+              </button>
+              <Link href="/travel-desk" className="button button-ghost">
+                <LayoutDashboard size={15} /> Operations Overview
+              </Link>
             </div>
-          </section>
+          </div>
 
-          <div className="stats-grid desk-stats">
-            <StatCard label="Approved to book" value={String(approvedCount).padStart(2, "0")} detail="Ready for ticketing" icon={<ShieldCheck size={18} />} accent="stat-accent" />
-            <StatCard label="Pending approval" value={String(pendingApproverCount).padStart(2, "0")} detail="Early desk visibility" icon={<Clock3 size={18} />} />
-            <StatCard label="Confirmed booked" value={String(activeBookings.length).padStart(2, "0")} detail="Live booking records" icon={<TicketCheck size={18} />} />
-            <StatCard label="Cancellations" value={String(cancelledBookings.length).padStart(2, "0")} detail="Current status" icon={<XCircle size={18} />} />
+          {/* Urgent Priority Banner in Workstation */}
+          {urgentDepartures.length > 0 && statusTab !== "URGENT" && (
+            <div className="urgent-triage-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ padding: 10, borderRadius: 12, background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <strong style={{ fontSize: 14, color: "var(--ink)", display: "block" }}>
+                    {urgentDepartures.length} Priority Departure{urgentDepartures.length === 1 ? "" : "s"} Departing in &lt;48 Hours
+                  </strong>
+                  <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                    Immediate ticketing required to secure corporate fares and ensure seamless employee departure.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="button button-primary"
+                style={{ background: "#dc2626", borderColor: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}
+                onClick={() => setStatusTab("URGENT")}
+              >
+                <Zap size={14} /> Filter Urgent Queue
+              </button>
+            </div>
+          )}
+
+          {/* Workstation Filters & Search Toolbar */}
+          <div className="panel" style={{ padding: "16px 20px", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div className="search-field" style={{ minWidth: 260, flex: "1 1 280px" }}>
+                <Search size={16} />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search passenger, employee ID, route, PNR, provider, project..."
+                />
+                {searchQuery && (
+                  <button type="button" className="icon-button" onClick={() => setSearchQuery("")} title="Clear search">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="workstation-tabs">
+                <button
+                  type="button"
+                  className={`workstation-tab ${statusTab === "ALL" ? "active" : ""}`}
+                  onClick={() => setStatusTab("ALL")}
+                >
+                  All Requests <span className="workstation-tab-count">{rows.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`workstation-tab ${statusTab === "URGENT" ? "active" : ""}`}
+                  onClick={() => setStatusTab("URGENT")}
+                >
+                  🚨 Urgent (&lt;48h) <span className="workstation-tab-count">{urgentDepartures.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`workstation-tab ${statusTab === "READY" ? "active" : ""}`}
+                  onClick={() => setStatusTab("READY")}
+                >
+                  Ready to Book <span className="workstation-tab-count">{approvedCount}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`workstation-tab ${statusTab === "PENDING" ? "active" : ""}`}
+                  onClick={() => setStatusTab("PENDING")}
+                >
+                  In Review <span className="workstation-tab-count">{pendingApproverCount}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`workstation-tab ${statusTab === "BOOKED" ? "active" : ""}`}
+                  onClick={() => setStatusTab("BOOKED")}
+                >
+                  Ticketed <span className="workstation-tab-count">{activeBookings.length}</span>
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}>Mode:</span>
+                <select
+                  value={modeFilter}
+                  onChange={(e) => setModeFilter(e.target.value)}
+                  style={{ padding: "6px 10px", borderRadius: 8, fontSize: 12, border: "1px solid var(--line)", background: "var(--surface)" }}
+                >
+                  <option value="ALL">All Modes</option>
+                  <option value="FLIGHT">Flight</option>
+                  <option value="TRAIN">Train</option>
+                  <option value="HOTEL">Hotel</option>
+                  <option value="CAB">Cab</option>
+                  <option value="BUS">Bus</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="panel table-panel">
             <div className="section-title-row">
               <div>
-                <span className="card-kicker">OPERATIONS QUEUE</span>
-                <h2 className="section-heading">All employee travel requests</h2>
+                <span className="card-kicker">ACTIVE QUEUE</span>
+                <h2 className="section-heading">
+                  {statusTab === "URGENT" ? "Priority Urgent Departures" : statusTab === "READY" ? "Ready for Confirmed Ticketing" : statusTab === "BOOKED" ? "Confirmed Booked Journeys" : "Ticketing Workstation Requests"}
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-muted)", marginLeft: 8 }}>
+                    ({filteredRows.length} showing)
+                  </span>
+                </h2>
               </div>
               <span className="data-note"><ShieldCheck size={13} /> Live backend data</span>
             </div>
@@ -1954,25 +2420,27 @@ function TravelDesk() {
             {bookingError && <div className="form-error-message"><XCircle size={15} />{bookingError}</div>}
 
             {loading || bookingsLoading ? (
-              <EmptyState icon={<Clock3 size={20} />} title="Loading queue" description="Fetching travel requests and booking records from Travora." />
-            ) : rows.length ? (
+              <EmptyState icon={<Clock3 size={20} />} title="Loading workstation" description="Fetching travel requests and live booking records." />
+            ) : filteredRows.length ? (
               <div className="responsive-table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Employee / Passenger</th>
+                      <th>Passenger / Employee</th>
                       <th>Journey & Route</th>
-                      <th>Travel dates</th>
-                      <th>Approver status</th>
-                      <th>Action</th>
+                      <th>Travel Dates</th>
+                      <th>Approver Status</th>
+                      <th>Booking / PNR</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => {
+                    {filteredRows.map((row) => {
                       const record = activeBookings.find((booking) => String(booking?.travelRequest?.id) === row.id);
                       const isApproved = row.status === "Approved";
                       const isPending = row.status === "Pending approval";
                       const isBooked = row.status === "Booked";
+                      const urgency = getDepartureUrgency(row);
                       const emp = row.employee || {
                         name: row.passenger || "Employee",
                         employeeId: "EMP",
@@ -1997,7 +2465,316 @@ function TravelDesk() {
                             <strong>{row.destination}</strong>
                             <small className="table-subline">{row.from} → {row.to} · {row.project}</small>
                           </td>
-                          <td>{row.dates}</td>
+                          <td>
+                            <div>
+                              <span>{row.dates}</span>
+                              {urgency.badgeText && (
+                                <div style={{ marginTop: 3 }}>
+                                  <span className={urgency.isUrgent ? "urgent-badge-pill" : "meta-chip"} style={{ fontSize: 10 }}>
+                                    {urgency.badgeText}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {isApproved ? (
+                              <span className="approval-pill approved" title={row.approverName ? `Approved by ${row.approverName}` : "Approved"}>
+                                <Check size={12} /> Approver Approved
+                              </span>
+                            ) : isPending ? (
+                              <span className="approval-pill pending">
+                                <Clock3 size={12} /> Pending Manager
+                              </span>
+                            ) : isBooked ? (
+                              <span className="approval-pill booked">
+                                <TicketCheck size={12} /> Ticket Issued
+                              </span>
+                            ) : (
+                              <StatusBadge status={row.status} />
+                            )}
+                          </td>
+                          <td>
+                            {record ? (
+                              <div>
+                                <strong style={{ fontSize: 12, color: "var(--ink)" }}>{record.bookingReference || "CONFIRMED"}</strong>
+                                <small className="table-subline">{record.provider || record.bookingType} · {record.cost !== undefined ? `₹${Number(record.cost).toLocaleString("en-IN")}` : ""}</small>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>Awaiting ticketing</span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="table-inline-actions">
+                              {isApproved ? (
+                                <button className="table-action" style={{ fontWeight: 700, color: "var(--green)" }} onClick={() => setBookingJourney(row)}>
+                                  Issue Ticket <ArrowUpRight size={14} />
+                                </button>
+                              ) : isPending ? (
+                                <button className="table-action" onClick={() => setBookingJourney(row)}>
+                                  Pre-book <ArrowUpRight size={14} />
+                                </button>
+                              ) : record ? (
+                                <>
+                                  <button className="table-action" onClick={() => setEditingBooking(record)} title="Edit booking details">
+                                    Edit <ArrowUpRight size={14} />
+                                  </button>
+                                  <button
+                                    className="table-action"
+                                    onClick={() => setViewingVoucher({ journey: row, booking: record })}
+                                    title="View printable travel dispatch voucher"
+                                    style={{ color: "var(--blue)" }}
+                                  >
+                                    Voucher <TicketCheck size={14} />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="table-action table-action-muted">Booked <Check size={14} /></span>
+                              )}
+                              <button
+                                type="button"
+                                className="table-action table-action-danger"
+                                title="Delete request from operations queue"
+                                onClick={() => setDeletingJourney(row)}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState
+                icon={<TicketCheck size={20} />}
+                title="No matching requests"
+                description={searchQuery || statusTab !== "ALL" || modeFilter !== "ALL" ? "Try adjusting your search query or filter options." : "Employee travel requests will appear here immediately upon submission."}
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        /* OPERATIONS OVERVIEW MODE (/travel-desk) */
+        <>
+          <section className="ops-hero">
+            <div>
+              <span className="card-kicker">TODAY IN OPERATIONS</span>
+              <h2>Keep corporate journeys moving.</h2>
+              <p>Employee travel requests reach the desk immediately. Prepare advance quotes or issue confirmed tickets once approved.</p>
+              <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+                <Link href="/travel-desk/bookings" className="button button-primary">
+                  Open booking queue <ArrowUpRight size={16} />
+                </Link>
+                <button type="button" className="button button-ghost" onClick={exportPassengerManifest}>
+                  <FileSpreadsheet size={15} /> Export manifest CSV
+                </button>
+              </div>
+            </div>
+            <div className="ops-hero-metric">
+              <span>Ready to book</span>
+              <strong>{String(approvedCount).padStart(2, "0")}</strong>
+              <small>approved trips</small>
+            </div>
+          </section>
+
+          {/* Urgent Departures Priority Radar */}
+          {urgentDepartures.length > 0 && (
+            <div className="urgent-triage-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ padding: 10, borderRadius: 12, background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <strong style={{ fontSize: 14, color: "var(--ink)", display: "block" }}>
+                    {urgentDepartures.length} Urgent Departure{urgentDepartures.length === 1 ? "" : "s"} within 48 Hours
+                  </strong>
+                  <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                    Immediate ticketing required. High priority departures detected in queue.
+                  </span>
+                </div>
+              </div>
+              <Link href="/travel-desk/bookings" className="button button-primary" style={{ background: "#dc2626", borderColor: "#dc2626", color: "#fff", whiteSpace: "nowrap" }}>
+                <Zap size={14} /> Open Priority Workstation
+              </Link>
+            </div>
+          )}
+
+          {/* Core Operations Stats */}
+          <div className="stats-grid desk-stats">
+            <StatCard label="Approved to book" value={String(approvedCount).padStart(2, "0")} detail="Ready for ticketing" icon={<ShieldCheck size={18} />} accent="stat-accent" />
+            <StatCard label="Pending approval" value={String(pendingApproverCount).padStart(2, "0")} detail="Early desk visibility" icon={<Clock3 size={18} />} />
+            <StatCard label="Confirmed booked" value={String(activeBookings.length).padStart(2, "0")} detail={`₹${totalSpend.toLocaleString("en-IN")} total spend`} icon={<TicketCheck size={18} />} />
+            <StatCard label="Cancellations" value={String(cancelledBookings.length).padStart(2, "0")} detail={`₹${totalCancellationCharges.toLocaleString("en-IN")} fees`} icon={<XCircle size={18} />} />
+          </div>
+
+          {/* 2-Column Live Analytics Grid */}
+          <div className="desk-analytics-grid">
+            {/* Carrier & Provider Volume Breakdown */}
+            <div className="panel carrier-breakdown-panel">
+              <div className="section-title-row">
+                <div>
+                  <span className="card-kicker">CARRIER ANALYTICS</span>
+                  <h3 className="section-heading" style={{ fontSize: 18 }}>Provider & Airline Split</h3>
+                </div>
+                <Plane size={18} className="panel-icon" />
+              </div>
+              <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "4px 0 16px" }}>
+                Volume breakdown across corporate carriers and travel vendors.
+              </p>
+
+              {carrierStats.length > 0 ? (
+                <div style={{ display: "grid", gap: 14 }}>
+                  {carrierStats.map((stat) => (
+                    <div className="carrier-stat-row" key={stat.name}>
+                      <div className="carrier-stat-meta">
+                        <span><strong>{stat.name}</strong></span>
+                        <span style={{ color: "var(--ink-muted)", fontSize: 11 }}>{stat.count} trip{stat.count === 1 ? "" : "s"} ({stat.pct}%)</span>
+                      </div>
+                      <div className="carrier-track">
+                        <div
+                          className={`carrier-fill ${
+                            stat.name.toLowerCase().includes("indigo")
+                              ? "carrier-fill-indigo"
+                              : stat.name.toLowerCase().includes("air india")
+                              ? "carrier-fill-airindia"
+                              : stat.name.toLowerCase().includes("vistara")
+                              ? "carrier-fill-vistara"
+                              : stat.name.toLowerCase().includes("rail") || stat.name.toLowerCase().includes("irctc")
+                              ? "carrier-fill-rail"
+                              : ""
+                          }`}
+                          style={{ width: `${Math.max(stat.pct, 8)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={<Plane size={18} />} title="No carrier data yet" description="Confirmed bookings will populate carrier analytics." />
+              )}
+            </div>
+
+            {/* Corporate Spend & Savings Snapshot */}
+            <div className="panel carrier-breakdown-panel">
+              <div className="section-title-row">
+                <div>
+                  <span className="card-kicker">FINANCIAL EFFICIENCY</span>
+                  <h3 className="section-heading" style={{ fontSize: 18 }}>Corporate Spend & Savings</h3>
+                </div>
+                <TrendingUp size={18} className="panel-icon" />
+              </div>
+
+              <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
+                <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                  <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--green)" }}>Total Negotiated Savings</small>
+                  <strong style={{ display: "block", fontSize: 24, color: "var(--green)", marginTop: 2 }}>
+                    ₹{totalSavings.toLocaleString("en-IN")}
+                  </strong>
+                  <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>Saved via corporate rates and early bookings</span>
+                </div>
+
+                <div style={{ padding: "14px 18px", borderRadius: 12, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
+                  <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-muted)" }}>Average Ticket Cost</small>
+                  <strong style={{ display: "block", fontSize: 20, color: "var(--ink)", marginTop: 2 }}>
+                    ₹{avgSpend.toLocaleString("en-IN")} <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-muted)" }}>/ confirmed trip</span>
+                  </strong>
+                </div>
+
+                {/* Top department loads */}
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-muted)", display: "block", marginBottom: 8 }}>
+                    Top Department Travel Demands
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {departmentStats.map(([dept, count]) => (
+                      <span key={dept} className="meta-chip meta-chip-primary" style={{ fontSize: 11 }}>
+                        {dept}: <strong>{count}</strong>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Operations Queue */}
+          <div className="panel table-panel">
+            <div className="section-title-row">
+              <div>
+                <span className="card-kicker">OPERATIONS QUEUE</span>
+                <h2 className="section-heading">Employee travel requests</h2>
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <Link href="/travel-desk/bookings" className="button button-ghost">
+                  Open full workstation <ArrowUpRight size={14} />
+                </Link>
+                <span className="data-note"><ShieldCheck size={13} /> Live backend data</span>
+              </div>
+            </div>
+
+            {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
+            {bookingError && <div className="form-error-message"><XCircle size={15} />{bookingError}</div>}
+
+            {loading || bookingsLoading ? (
+              <EmptyState icon={<Clock3 size={20} />} title="Loading queue" description="Fetching travel requests and booking records from Travora." />
+            ) : rows.length ? (
+              <div className="responsive-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Employee / Passenger</th>
+                      <th>Journey & Route</th>
+                      <th>Travel dates</th>
+                      <th>Approver status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.slice(0, 8).map((row) => {
+                      const record = activeBookings.find((booking) => String(booking?.travelRequest?.id) === row.id);
+                      const isApproved = row.status === "Approved";
+                      const isPending = row.status === "Pending approval";
+                      const isBooked = row.status === "Booked";
+                      const urgency = getDepartureUrgency(row);
+                      const emp = row.employee || {
+                        name: row.passenger || "Employee",
+                        employeeId: "EMP",
+                        department: "General Operations",
+                        designation: "Employee",
+                      };
+
+                      return (
+                        <tr key={row.id}>
+                          <td>
+                            <div className="table-journey">
+                              <span className="avatar avatar-tiny">
+                                {(emp.name || row.passenger || "E").slice(0, 2).toUpperCase()}
+                              </span>
+                              <span>
+                                <strong>{emp.name || row.passenger}</strong>
+                                <small>{emp.employeeId} · {emp.department} · {emp.designation}</small>
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <strong>{row.destination}</strong>
+                            <small className="table-subline">{row.from} → {row.to} · {row.project}</small>
+                          </td>
+                          <td>
+                            <div>
+                              <span>{row.dates}</span>
+                              {urgency.badgeText && (
+                                <div style={{ marginTop: 2 }}>
+                                  <span className={urgency.isUrgent ? "urgent-badge-pill" : "meta-chip"} style={{ fontSize: 10 }}>
+                                    {urgency.badgeText}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             {isApproved ? (
                               <span className="approval-pill approved"><Check size={12} /> Approver Approved</span>
@@ -2012,7 +2789,7 @@ function TravelDesk() {
                           <td>
                             <div className="table-inline-actions">
                               {isApproved ? (
-                                <button className="table-action" onClick={() => setBookingJourney(row)}>
+                                <button className="table-action" style={{ fontWeight: 700, color: "var(--green)" }} onClick={() => setBookingJourney(row)}>
                                   Add booking <ArrowUpRight size={14} />
                                 </button>
                               ) : isPending ? (
@@ -2020,9 +2797,19 @@ function TravelDesk() {
                                   Prepare booking <ArrowUpRight size={14} />
                                 </button>
                               ) : record ? (
-                                <button className="table-action" onClick={() => setEditingBooking(record)}>
-                                  View / edit <ArrowUpRight size={14} />
-                                </button>
+                                <>
+                                  <button className="table-action" onClick={() => setEditingBooking(record)}>
+                                    View / edit <ArrowUpRight size={14} />
+                                  </button>
+                                  <button
+                                    className="table-action"
+                                    onClick={() => setViewingVoucher({ journey: row, booking: record })}
+                                    style={{ color: "var(--blue)" }}
+                                    title="View dispatch voucher"
+                                  >
+                                    Voucher <TicketCheck size={14} />
+                                  </button>
+                                </>
                               ) : (
                                 <span className="table-action table-action-muted">Booked <Check size={14} /></span>
                               )}
@@ -2049,9 +2836,11 @@ function TravelDesk() {
         </>
       )}
 
+      {/* MODALS */}
       {bookingJourney && <BookingDialog journey={bookingJourney} onClose={() => setBookingJourney(null)} onSubmit={createBooking} />}
       {editingBooking && <BookingEditDialog booking={editingBooking} onClose={() => setEditingBooking(null)} onSubmit={updateBooking} />}
       {cancellingBooking && <CancellationDialog booking={cancellingBooking} onClose={() => setCancellingBooking(null)} onSubmit={cancelBooking} />}
+      {viewingVoucher && <VoucherModal journey={viewingVoucher.journey} booking={viewingVoucher.booking} onClose={() => setViewingVoucher(null)} />}
       {deletingJourney && (
         <DeleteConfirmDialog
           title={`Delete request #${deletingJourney.id}?`}
@@ -2069,9 +2858,24 @@ function TravelDesk() {
   );
 }
 
+const CARRIER_QUICK_CHIPS: Record<string, string[]> = {
+  FLIGHT: ["IndiGo", "Air India", "Vistara", "Akasa Air", "SpiceJet"],
+  TRAIN: ["IRCTC / Indian Railways", "Vande Bharat Express", "Rajdhani Express"],
+  HOTEL: ["Taj Hotels", "Marriott Corporate", "Hyatt Regency", "Lemon Tree", "Ginger Hotels"],
+  CAB: ["Uber Corporate", "Ola Corporate", "Mega Cabs"],
+  BUS: ["Zingbus", "IntrCity SmartBus", "State Transport"],
+};
+
 function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClose: () => void; onSubmit: (payload: Record<string, unknown>) => Promise<void> }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [bookingType, setBookingType] = useState("FLIGHT");
+  const [provider, setProvider] = useState("");
+  const [flightNo, setFlightNo] = useState("");
+  const [seatNo, setSeatNo] = useState("");
+  const [terminal, setTerminal] = useState("");
+  const [costValue, setCostValue] = useState("");
+  const [savingsValue, setSavingsValue] = useState("");
   const [attachmentName, setAttachmentName] = useState("");
   const [attachmentType, setAttachmentType] = useState("");
   const [attachmentData, setAttachmentData] = useState("");
@@ -2098,29 +2902,47 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const bookingType = String(form.get("bookingType") || "");
+    const selectedType = bookingType;
     const bookingReference = String(form.get("bookingReference") || "").trim();
-    const cost = String(form.get("cost") || "").trim();
-    if (!bookingType || !bookingReference || !cost || !journey.id) { setError("Booking type, reference, cost, and the selected travel request are required."); return; }
-    const numericCost = Number(cost);
-    const savingsValue = String(form.get("savings") || "").trim();
-    if (!Number.isFinite(numericCost) || numericCost < 0 || (savingsValue && (!Number.isFinite(Number(savingsValue)) || Number(savingsValue) < 0))) { setError("Cost and savings must be valid non-negative amounts."); return; }
-    setSubmitting(true); setError("");
+    const cost = Number(costValue);
+    if (!selectedType || !bookingReference || !costValue || !journey.id) {
+      setError("Booking type, reference, cost, and the selected travel request are required.");
+      return;
+    }
+    if (!Number.isFinite(cost) || cost < 0 || (savingsValue && (!Number.isFinite(Number(savingsValue)) || Number(savingsValue) < 0))) {
+      setError("Cost and savings must be valid non-negative amounts.");
+      return;
+    }
+
+    // Compose helper notes
+    const rawNotes = String(form.get("notes") || "").trim();
+    const details = [
+      flightNo ? `Service No: ${flightNo}` : null,
+      seatNo ? `Seat/Room: ${seatNo}` : null,
+      terminal ? `Terminal/Platform: ${terminal}` : null,
+      rawNotes ? rawNotes : null,
+    ].filter(Boolean).join(" · ");
+
+    setSubmitting(true);
+    setError("");
     try {
       await onSubmit({
         travelRequest: { id: journey.id },
-        bookingType,
+        bookingType: selectedType,
         bookingReference,
-        provider: String(form.get("provider") || "").trim() || null,
-        cost: numericCost,
+        provider: provider.trim() || null,
+        cost,
         savings: savingsValue ? Number(savingsValue) : null,
-        notes: String(form.get("notes") || "").trim() || null,
+        notes: details || null,
         attachmentName: attachmentName || null,
         attachmentType: attachmentType || null,
         attachmentData: attachmentData || null,
       });
-    } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "We couldn't create this booking."); }
-    finally { setSubmitting(false); }
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "We couldn't create this booking.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const emp = journey.employee || {
@@ -2130,15 +2952,17 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
     designation: "Employee",
   };
 
+  const chips = CARRIER_QUICK_CHIPS[bookingType] || [];
+
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="booking-dialog-title">
       <div className="booking-dialog">
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close booking form"><X size={18} /></button>
         <div className="booking-dialog-header">
           <div className="confirm-icon approve"><TicketCheck size={22} /></div>
-          <span className="card-kicker">TRAVEL DESK BOOKING</span>
-          <h2 id="booking-dialog-title">Add booking & ticket details</h2>
-          <p>Attach confirmed ticket information, photo, or PDF voucher to this journey.</p>
+          <span className="card-kicker">TRAVEL DESK FAST-TICKETING</span>
+          <h2 id="booking-dialog-title">Issue booking & ticket voucher</h2>
+          <p>Attach confirmed ticket details, quick carrier chips, seat allocation, and PDF voucher.</p>
         </div>
 
         {/* Employee Profile Card for Travel Desk */}
@@ -2212,30 +3036,111 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
           <div className="form-grid">
             <label className="field">
               <span>Booking type <em>*</em></span>
-              <select name="bookingType" defaultValue="" required>
-                <option value="" disabled>Select type</option>
+              <select
+                name="bookingType"
+                value={bookingType}
+                onChange={(e) => {
+                  setBookingType(e.target.value);
+                  setProvider("");
+                }}
+                required
+              >
                 <option value="FLIGHT">Flight</option>
-                <option value="BUS">Bus</option>
-                <option value="CAB">Cab</option>
                 <option value="TRAIN">Train</option>
                 <option value="HOTEL">Hotel</option>
+                <option value="CAB">Cab</option>
+                <option value="BUS">Bus</option>
               </select>
             </label>
             <label className="field">
               <span>Booking reference / PNR <em>*</em></span>
-              <input name="bookingReference" required placeholder="e.g. AI-7H2K9" />
+              <input name="bookingReference" required placeholder="e.g. 6E-9H2K8 or AI-4412" />
             </label>
+          </div>
+
+          {/* Quick Carrier Select Chips */}
+          {chips.length > 0 && (
+            <div style={{ marginTop: 2 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}>
+                Quick Carrier Select:
+              </span>
+              <div className="carrier-chips-container">
+                {chips.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    className={`carrier-quick-chip ${provider === chip ? "selected" : ""}`}
+                    onClick={() => setProvider(chip)}
+                  >
+                    {provider === chip ? <Check size={12} /> : <Zap size={12} />} {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="form-grid">
             <label className="field">
               <span>Provider / Airline</span>
-              <input name="provider" placeholder="e.g. Air India, Indigo, Marriott" />
+              <input
+                name="provider"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                placeholder="e.g. IndiGo, Air India, Marriott"
+              />
             </label>
             <label className="field">
               <span>Cost (₹) <em>*</em></span>
-              <input name="cost" required type="number" min="0" step="0.01" placeholder="0.00" />
+              <input
+                name="cost"
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={costValue}
+                onChange={(e) => setCostValue(e.target.value)}
+              />
             </label>
             <label className="field">
               <span>Savings (₹)</span>
-              <input name="savings" type="number" min="0" step="0.01" placeholder="0.00" />
+              <input
+                name="savings"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={savingsValue}
+                onChange={(e) => setSavingsValue(e.target.value)}
+              />
+            </label>
+          </div>
+
+          {/* Operational helper fields for travel desk */}
+          <div className="form-grid" style={{ marginTop: 2 }}>
+            <label className="field">
+              <span>Flight / Train / Room No.</span>
+              <input
+                placeholder="e.g. 6E-2041 or Room 402"
+                value={flightNo}
+                onChange={(e) => setFlightNo(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Seat / Berth No.</span>
+              <input
+                placeholder="e.g. 14B or B2-31"
+                value={seatNo}
+                onChange={(e) => setSeatNo(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Terminal / Platform</span>
+              <input
+                placeholder="e.g. Terminal 3, Platform 1"
+                value={terminal}
+                onChange={(e) => setTerminal(e.target.value)}
+              />
             </label>
           </div>
 
@@ -2264,15 +3169,15 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
           </div>
 
           <label className="field">
-            <span>Notes / Itinerary instructions</span>
-            <textarea name="notes" rows={2} placeholder="Add seat details, terminal info, or instructions for the employee." />
+            <span>Additional notes / Itinerary instructions</span>
+            <textarea name="notes" rows={2} placeholder="Add special instructions, meal preferences, or baggage rules for the employee." />
           </label>
 
           {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
 
           <div className="dialog-actions">
             <button type="button" className="button button-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
-            <button type="submit" className="button button-primary" disabled={submitting}>{submitting ? "Issuing booking…" : "Save booking & ticket"} <ArrowUpRight size={16} /></button>
+            <button type="submit" className="button button-primary" disabled={submitting}>{submitting ? "Issuing ticket…" : "Issue ticket & notify traveler"} <ArrowUpRight size={16} /></button>
           </div>
         </form>
       </div>
@@ -2280,13 +3185,27 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
   );
 }
 
-function BookingTable({ bookings, onEdit, onCancel, cancellationOnly = false }: { bookings: any[]; onEdit: (booking: any) => void; onCancel: (booking: any) => void; cancellationOnly?: boolean }) {
+function BookingTable({
+  bookings,
+  journeys = [],
+  onEdit,
+  onCancel,
+  onVoucher,
+  cancellationOnly = false,
+}: {
+  bookings: any[];
+  journeys?: Journey[];
+  onEdit: (booking: any) => void;
+  onCancel: (booking: any) => void;
+  onVoucher?: (booking: any, journey?: Journey) => void;
+  cancellationOnly?: boolean;
+}) {
   return (
     <div className="responsive-table">
       <table>
         <thead>
           <tr>
-            <th>Reference</th>
+            <th>Reference / PNR</th>
             <th>Type</th>
             <th>Provider</th>
             <th>Cost</th>
@@ -2296,37 +3215,52 @@ function BookingTable({ bookings, onEdit, onCancel, cancellationOnly = false }: 
           </tr>
         </thead>
         <tbody>
-          {bookings.map((booking) => (
-            <tr key={booking.id}>
-              <td>
-                <strong>{booking.bookingReference || "—"}</strong>
-                <small className="table-subline">Request {booking.travelRequest?.id || "—"}</small>
-              </td>
-              <td>{booking.bookingType || "—"}</td>
-              <td>{booking.provider || "—"}</td>
-              <td>{booking.cost !== undefined ? `₹${Number(booking.cost).toLocaleString("en-IN")}` : "—"}</td>
-              <td>
-                {booking.attachmentData ? (
-                  <span className="ticket-badge" title={booking.attachmentName || "Attached"}>
-                    <FileText size={12} /> {booking.attachmentType?.includes("pdf") ? "PDF Ticket" : "Photo"}
-                  </span>
-                ) : (
-                  <span className="text-xs opacity-50">—</span>
-                )}
-              </td>
-              <td><StatusBadge status={booking.cancelled ? "Cancelled" : "Booked"} /></td>
-              <td>
-                {booking.cancelled || cancellationOnly ? (
-                  <span className="table-action table-action-muted">{booking.cancelled ? "Cancelled" : "View"}</span>
-                ) : (
-                  <div className="table-inline-actions">
-                    <button className="table-action" onClick={() => onEdit(booking)}>Edit <ArrowUpRight size={14} /></button>
-                    <button className="table-action table-action-danger" onClick={() => onCancel(booking)}>Cancel <XCircle size={14} /></button>
-                  </div>
-                )}
-              </td>
-            </tr>
-          ))}
+          {bookings.map((booking) => {
+            const reqId = String(booking?.travelRequest?.id || "");
+            const matchingJourney = journeys.find((j) => j.id === reqId);
+
+            return (
+              <tr key={booking.id}>
+                <td>
+                  <strong>{booking.bookingReference || "—"}</strong>
+                  <small className="table-subline">Request {booking.travelRequest?.id || "—"}</small>
+                </td>
+                <td>{booking.bookingType || "—"}</td>
+                <td>{booking.provider || "—"}</td>
+                <td>{booking.cost !== undefined ? `₹${Number(booking.cost).toLocaleString("en-IN")}` : "—"}</td>
+                <td>
+                  {booking.attachmentData ? (
+                    <span className="ticket-badge" title={booking.attachmentName || "Attached"}>
+                      <FileText size={12} /> {booking.attachmentType?.includes("pdf") ? "PDF Ticket" : "Photo"}
+                    </span>
+                  ) : (
+                    <span className="text-xs opacity-50">—</span>
+                  )}
+                </td>
+                <td><StatusBadge status={booking.cancelled ? "Cancelled" : "Booked"} /></td>
+                <td>
+                  {booking.cancelled || cancellationOnly ? (
+                    <span className="table-action table-action-muted">{booking.cancelled ? "Cancelled" : "View"}</span>
+                  ) : (
+                    <div className="table-inline-actions">
+                      <button className="table-action" onClick={() => onEdit(booking)}>Edit <ArrowUpRight size={14} /></button>
+                      {onVoucher && matchingJourney && (
+                        <button
+                          className="table-action"
+                          style={{ color: "var(--blue)" }}
+                          onClick={() => onVoucher(booking, matchingJourney)}
+                          title="View dispatch voucher"
+                        >
+                          Voucher <TicketCheck size={14} />
+                        </button>
+                      )}
+                      <button className="table-action table-action-danger" onClick={() => onCancel(booking)}>Cancel <XCircle size={14} /></button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -2336,6 +3270,8 @@ function BookingTable({ bookings, onEdit, onCancel, cancellationOnly = false }: 
 function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClose: () => void; onSubmit: (id: string, payload: Record<string, unknown>) => Promise<void> }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [bookingType, setBookingType] = useState(booking.bookingType || "FLIGHT");
+  const [provider, setProvider] = useState(booking.provider || "");
   const [attachmentName, setAttachmentName] = useState(booking.attachmentName || "");
   const [attachmentType, setAttachmentType] = useState(booking.attachmentType || "");
   const [attachmentData, setAttachmentData] = useState(booking.attachmentData || "");
@@ -2372,9 +3308,9 @@ function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClo
     setError("");
     try {
       await onSubmit(String(booking.id), {
-        bookingType: String(form.get("bookingType")),
+        bookingType,
         bookingReference: reference,
-        provider: String(form.get("provider") || "").trim() || null,
+        provider: provider.trim() || null,
         cost,
         savings: String(form.get("savings") || "").trim() ? Number(form.get("savings")) : null,
         notes: String(form.get("notes") || "").trim() || null,
@@ -2389,10 +3325,165 @@ function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClo
     }
   }
 
-  return <div className="modal-overlay" role="dialog" aria-modal="true"><div className="booking-dialog"><button className="icon-button dialog-close" onClick={onClose} aria-label="Close edit booking"><X size={18} /></button><div className="booking-dialog-header"><div className="confirm-icon approve"><TicketCheck size={22} /></div><span className="card-kicker">EDIT BOOKING</span><h2>Update ticket details</h2><p>Update itinerary, provider, cost, and attached photo / PDF ticket voucher.</p></div><form className="booking-form" onSubmit={submit}><div className="form-grid"><label className="field"><span>Booking type</span><select name="bookingType" defaultValue={booking.bookingType || "FLIGHT"}><option value="FLIGHT">Flight</option><option value="BUS">Bus</option><option value="CAB">Cab</option><option value="TRAIN">Train</option><option value="HOTEL">Hotel</option></select></label><label className="field"><span>Booking reference *</span><input name="bookingReference" defaultValue={booking.bookingReference || ""} required /></label><label className="field"><span>Provider</span><input name="provider" defaultValue={booking.provider || ""} /></label><label className="field"><span>Cost *</span><input name="cost" type="number" min="0" step="0.01" defaultValue={booking.cost ?? ""} required /></label><label className="field"><span>Savings</span><input name="savings" type="number" min="0" step="0.01" defaultValue={booking.savings ?? ""} /></label></div><div className="field"><span>Ticket attachment (Photo or PDF)</span>{!attachmentData ? <label className="ticket-upload-box"><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={handleFileChange} style={{ display: "none" }} /><Upload size={22} className="text-amber-500" /><strong style={{ fontSize: 13 }}>Upload replacement ticket photo or PDF</strong><span style={{ fontSize: 11, opacity: 0.75 }}>Supports PNG, JPG, WEBP, or PDF up to 8MB</span></label> : <div><div className="ticket-file-chip"><div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>{attachmentType?.includes("pdf") ? <FileText size={20} className="text-red-500 shrink-0" /> : <ImageIcon size={20} className="text-emerald-500 shrink-0" />}<span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attachmentName || "Attached document"}</span>{attachmentSize && <small style={{ opacity: 0.7, fontSize: 11 }}>({attachmentSize})</small>}</div><button type="button" className="icon-button" onClick={() => { setAttachmentData(""); setAttachmentName(""); setAttachmentType(""); setAttachmentSize(""); }} title="Remove attachment"><X size={14} /></button></div>{attachmentType?.includes("image") && <img src={attachmentData} alt="Ticket preview" className="ticket-attachment-preview" style={{ marginTop: 8 }} />}</div>}</div><label className="field"><span>Notes</span><textarea name="notes" rows={2} defaultValue={booking.notes || ""} /></label>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}<div className="dialog-actions"><button type="button" className="button button-ghost" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary" disabled={submitting}>{submitting ? "Saving…" : "Save changes"} <ArrowUpRight size={16} /></button></div></form></div></div>;
+  const chips = CARRIER_QUICK_CHIPS[bookingType] || [];
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="booking-dialog">
+        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close edit booking"><X size={18} /></button>
+        <div className="booking-dialog-header">
+          <div className="confirm-icon approve"><TicketCheck size={22} /></div>
+          <span className="card-kicker">EDIT BOOKING</span>
+          <h2>Update ticket details</h2>
+          <p>Update itinerary, carrier, cost, and attached photo / PDF ticket voucher.</p>
+        </div>
+        <form className="booking-form" onSubmit={submit}>
+          <div className="form-grid">
+            <label className="field">
+              <span>Booking type</span>
+              <select
+                name="bookingType"
+                value={bookingType}
+                onChange={(e) => setBookingType(e.target.value)}
+              >
+                <option value="FLIGHT">Flight</option>
+                <option value="BUS">Bus</option>
+                <option value="CAB">Cab</option>
+                <option value="TRAIN">Train</option>
+                <option value="HOTEL">Hotel</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Booking reference *</span>
+              <input name="bookingReference" defaultValue={booking.bookingReference || ""} required />
+            </label>
+          </div>
+
+          {chips.length > 0 && (
+            <div style={{ marginTop: 2 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-muted)", textTransform: "uppercase" }}>
+                Quick Carrier Select:
+              </span>
+              <div className="carrier-chips-container">
+                {chips.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    className={`carrier-quick-chip ${provider === chip ? "selected" : ""}`}
+                    onClick={() => setProvider(chip)}
+                  >
+                    {provider === chip ? <Check size={12} /> : <Zap size={12} />} {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="form-grid">
+            <label className="field">
+              <span>Provider</span>
+              <input name="provider" value={provider} onChange={(e) => setProvider(e.target.value)} />
+            </label>
+            <label className="field">
+              <span>Cost *</span>
+              <input name="cost" type="number" min="0" step="0.01" defaultValue={booking.cost ?? ""} required />
+            </label>
+            <label className="field">
+              <span>Savings</span>
+              <input name="savings" type="number" min="0" step="0.01" defaultValue={booking.savings ?? ""} />
+            </label>
+          </div>
+
+          <div className="field">
+            <span>Ticket attachment (Photo or PDF)</span>
+            {!attachmentData ? (
+              <label className="ticket-upload-box">
+                <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={handleFileChange} style={{ display: "none" }} />
+                <Upload size={22} className="text-amber-500" />
+                <strong style={{ fontSize: 13 }}>Upload replacement ticket photo or PDF</strong>
+                <span style={{ fontSize: 11, opacity: 0.75 }}>Supports PNG, JPG, WEBP, or PDF up to 8MB</span>
+              </label>
+            ) : (
+              <div>
+                <div className="ticket-file-chip">
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    {attachmentType?.includes("pdf") ? <FileText size={20} className="text-red-500 shrink-0" /> : <ImageIcon size={20} className="text-emerald-500 shrink-0" />}
+                    <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attachmentName || "Attached document"}</span>
+                    {attachmentSize && <small style={{ opacity: 0.7, fontSize: 11 }}>({attachmentSize})</small>}
+                  </div>
+                  <button type="button" className="icon-button" onClick={() => { setAttachmentData(""); setAttachmentName(""); setAttachmentType(""); setAttachmentSize(""); }} title="Remove attachment"><X size={14} /></button>
+                </div>
+                {attachmentType?.includes("image") && <img src={attachmentData} alt="Ticket preview" className="ticket-attachment-preview" style={{ marginTop: 8 }} />}
+              </div>
+            )}
+          </div>
+
+          <label className="field">
+            <span>Notes</span>
+            <textarea name="notes" rows={2} defaultValue={booking.notes || ""} />
+          </label>
+
+          {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
+
+          <div className="dialog-actions">
+            <button type="button" className="button button-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="button button-primary" disabled={submitting}>{submitting ? "Saving…" : "Save changes"} <ArrowUpRight size={16} /></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
-function CancellationDialog({ booking, onClose, onSubmit }: { booking: any; onClose: () => void; onSubmit: (id: string, reason: string, charge: number) => Promise<void> }) { const [submitting, setSubmitting] = useState(false); const [error, setError] = useState(""); async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); const reason = String(form.get("reason") || "").trim(); const charge = Number(form.get("cancellationCharge") || 0); if (!reason || !Number.isFinite(charge) || charge < 0) { setError("A cancellation reason and valid non-negative charge are required."); return; } setSubmitting(true); setError(""); try { await onSubmit(String(booking.id), reason, charge); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "We couldn't cancel this booking."); } finally { setSubmitting(false); } } return <div className="modal-overlay" role="dialog" aria-modal="true"><div className="confirm-dialog cancellation-dialog"><button className="icon-button dialog-close" onClick={onClose} aria-label="Close cancellation dialog"><X size={18} /></button><div className="confirm-icon reject"><XCircle size={22} /></div><span className="card-kicker">CANCEL BOOKING</span><h2>Cancel {booking.bookingReference || "this booking"}?</h2><p>This action updates the real backend booking record and cannot be repeated once cancelled.</p><form className="booking-form" onSubmit={submit}><label className="field"><span>Cancellation reason *</span><textarea name="reason" rows={3} required placeholder="Why is this booking being cancelled?" /></label><label className="field"><span>Cancellation charge</span><input name="cancellationCharge" type="number" min="0" step="0.01" defaultValue="0" /></label>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}<div className="dialog-actions"><button type="button" className="button button-ghost" onClick={onClose}>Keep booking</button><button type="submit" className="button button-danger" disabled={submitting}>{submitting ? "Cancelling…" : "Cancel booking"}</button></div></form></div></div>; }
+function CancellationDialog({ booking, onClose, onSubmit }: { booking: any; onClose: () => void; onSubmit: (id: string, reason: string, charge: number) => Promise<void> }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const reason = String(form.get("reason") || "").trim();
+    const charge = Number(form.get("cancellationCharge") || 0);
+    if (!reason || !Number.isFinite(charge) || charge < 0) {
+      setError("A cancellation reason and valid non-negative charge are required.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await onSubmit(String(booking.id), reason, charge);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "We couldn't cancel this booking.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="confirm-dialog cancellation-dialog">
+        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close cancellation dialog"><X size={18} /></button>
+        <div className="confirm-icon reject"><XCircle size={22} /></div>
+        <span className="card-kicker">CANCEL BOOKING</span>
+        <h2>Cancel {booking.bookingReference || "this booking"}?</h2>
+        <p>This action updates the real backend booking record and cannot be repeated once cancelled.</p>
+        <form className="booking-form" onSubmit={submit}>
+          <label className="field">
+            <span>Cancellation reason *</span>
+            <textarea name="reason" rows={3} required placeholder="Why is this booking being cancelled?" />
+          </label>
+          <label className="field">
+            <span>Cancellation charge</span>
+            <input name="cancellationCharge" type="number" min="0" step="0.01" defaultValue="0" />
+          </label>
+          {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
+          <div className="dialog-actions">
+            <button type="button" className="button button-ghost" onClick={onClose}>Keep booking</button>
+            <button type="submit" className="button button-danger" disabled={submitting}>{submitting ? "Cancelling…" : "Cancel booking"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function Reports() {
   const user = getStoredUser<AuthUser>();

@@ -13,6 +13,18 @@ export type Journey = {
   booking?: string;
   passenger?: string;
   estimatedCost?: number;
+  approverName?: string;
+  approvalComment?: string;
+  approvalDate?: string;
+  reason?: string;
+  employee?: {
+    id?: number | string;
+    name?: string;
+    employeeId?: string;
+    department?: string;
+    designation?: string;
+  };
+  rawRequest?: Record<string, any>;
 };
 
 export type BackendRequest = Record<string, any>;
