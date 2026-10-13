@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: travora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: traveldesk
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - travora-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d traveldesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: travora-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      SPRING_PROFILES_ACTIVE: prod
+      TRAVORA_DB_URL: jdbc:postgresql://postgres:5432/traveldesk
+      TRAVORA_DB_USERNAME: postgres
+      TRAVORA_DB_PASSWORD: postgrespassword
+      TRAVORA_JWT_SECRET: ${TRAVORA_JWT_SECRET:-travora-enterprise-production-jwt-token-signing-key-minimum-32-chars!}
+      TRAVORA_CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:3001,https://travora-ashy.vercel.app
+      TRAVORA_DDL_AUTO: validate
+      TRAVORA_FLYWAY_ENABLED: "true"
+    ports:
+      - "8080:8080"
+
+volumes:
+  travora-postgres-data:
+    driver: local
