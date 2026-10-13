@@ -832,6 +832,8 @@ const SYNC_URL = `https://ntfy.sh/${SYNC_TOPIC}`;
 
 export async function broadcastCloudSync(action: string, payload: any) {
   if (typeof window === "undefined") return;
+  // SECURITY REMEDIATION: In production mode with backend API, do not broadcast to public broker
+  if (API_BASE_URL) return;
   try {
     const body = JSON.stringify({
       action,
@@ -887,6 +889,8 @@ export function handleIncomingCloudSync(msg: any) {
 let _cloudSyncStarted = false;
 export function initCloudSync() {
   if (typeof window === "undefined" || _cloudSyncStarted) return;
+  // SECURITY REMEDIATION: In production mode with backend API, disable public sync channel
+  if (API_BASE_URL) return;
   _cloudSyncStarted = true;
 
   try {
@@ -946,6 +950,7 @@ export function initCloudSync() {
 }
 
 export async function manualCloudSync(): Promise<{ success: boolean; count: number }> {
+  if (API_BASE_URL) return { success: true, count: 0 };
   try {
     const since = Math.floor(Date.now() / 1000) - 7200;
     const res = await fetch(`${SYNC_URL}/json?poll=1&since=${since}`);
@@ -1655,16 +1660,58 @@ export const dashboardApi = {
 
 export const bulkBookingsApi = {
   list: async (): Promise<BulkBookingRecord[]> => {
+    const deletedIds = getDeletedBulkBookingIds();
+    if (API_BASE_URL) {
+      try {
+        const data = await apiRequest<BulkBookingRecord[]>("/api/bulk-bookings");
+        if (Array.isArray(data)) {
+          return data.filter((b) => b && b.id && !deletedIds.has(String(b.id)));
+        }
+      } catch {
+        // Fallback to local storage if backend offline
+      }
+    }
     return _getAllSystemBulkBookings();
   },
   getById: async (id: string): Promise<BulkBookingRecord | null> => {
+    if (API_BASE_URL) {
+      try {
+        const data = await apiRequest<BulkBookingRecord>(`/api/bulk-bookings/${id}`);
+        if (data) return data;
+      } catch {
+        // Fallback to local storage
+      }
+    }
     const list = _getAllSystemBulkBookings();
-    return list.find((b) => b.id === id) || null;
+    return list.find((b) => String(b.id) === String(id)) || null;
   },
   create: async (payload: Partial<BulkBookingRecord>): Promise<BulkBookingRecord> => {
     const headcount = Math.max(1, Number(payload.headcount) || 1);
     const totalCost = Number(payload.totalCost) || 0;
     const costPerPerson = headcount > 0 ? Math.round(totalCost / headcount) : totalCost;
+
+    if (API_BASE_URL) {
+      try {
+        const created = await apiRequest<BulkBookingRecord>("/api/bulk-bookings", {
+          method: "POST",
+          body: JSON.stringify({
+            ...payload,
+            headcount,
+            totalCost,
+            costPerPerson,
+          }),
+        });
+        if (created) {
+          const current = _getAllSystemBulkBookings();
+          _saveAllSystemBulkBookings([created, ...current]);
+          return created;
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes("not reached") && !err?.message?.includes("failed to fetch")) {
+          throw err;
+        }
+      }
+    }
 
     const newRecord: BulkBookingRecord = {
       id: `GRP-BK-${Math.floor(Math.random() * 900 + 100)}`,
@@ -1714,21 +1761,57 @@ export const bulkBookingsApi = {
     return newRecord;
   },
   update: async (id: string, payload: Partial<BulkBookingRecord>): Promise<BulkBookingRecord> => {
+    if (API_BASE_URL) {
+      try {
+        const updated = await apiRequest<BulkBookingRecord>(`/api/bulk-bookings/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        if (updated) {
+          const current = _getAllSystemBulkBookings();
+          _saveAllSystemBulkBookings(current.map((b) => (String(b.id) === String(id) ? updated : b)));
+          return updated;
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes("not reached") && !err?.message?.includes("failed to fetch")) {
+          throw err;
+        }
+      }
+    }
+
     const current = _getAllSystemBulkBookings();
-    const existing = current.find((b) => b.id === id);
+    const existing = current.find((b) => String(b.id) === String(id));
     if (!existing) throw new Error("Bulk booking record not found.");
     const headcount = payload.headcount !== undefined ? Number(payload.headcount) : existing.headcount;
     const totalCost = payload.totalCost !== undefined ? Number(payload.totalCost) : existing.totalCost;
     const costPerPerson = headcount > 0 ? Math.round(totalCost / headcount) : totalCost;
     const updatedRecord: BulkBookingRecord = { ...existing, ...payload, headcount, totalCost, costPerPerson };
-    const updated = current.map((b) => (b.id === id ? updatedRecord : b));
+    const updated = current.map((b) => (String(b.id) === String(id) ? updatedRecord : b));
     _saveAllSystemBulkBookings(updated);
     broadcastCloudSync("UPDATE_BULK", updatedRecord);
     return updatedRecord;
   },
   reviewByApprover: async (id: string, status: "APPROVED" | "NOTED", comment: string): Promise<BulkBookingRecord> => {
+    if (API_BASE_URL) {
+      try {
+        const reviewed = await apiRequest<BulkBookingRecord>(`/api/bulk-bookings/${id}/review`, {
+          method: "PATCH",
+          body: JSON.stringify({ status, comment }),
+        });
+        if (reviewed) {
+          const current = _getAllSystemBulkBookings();
+          _saveAllSystemBulkBookings(current.map((b) => (String(b.id) === String(id) ? reviewed : b)));
+          return reviewed;
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes("not reached") && !err?.message?.includes("failed to fetch")) {
+          throw err;
+        }
+      }
+    }
+
     const current = _getAllSystemBulkBookings();
-    const existing = current.find((b) => b.id === id);
+    const existing = current.find((b) => String(b.id) === String(id));
     if (!existing) throw new Error("Bulk booking record not found.");
     const updatedRecord: BulkBookingRecord = {
       ...existing,
@@ -1736,11 +1819,10 @@ export const bulkBookingsApi = {
       approverComment: comment,
       approverReviewedAt: new Date().toISOString(),
     };
-    const updated = current.map((b) => (b.id === id ? updatedRecord : b));
+    const updated = current.map((b) => (String(b.id) === String(id) ? updatedRecord : b));
     _saveAllSystemBulkBookings(updated);
     broadcastCloudSync("REVIEW_BULK", updatedRecord);
 
-    // Notify Travel Desk of approver review
     const notifs = _getAllSystemNotifications();
     const newNotif = {
       id: `NOTIF-${Date.now()}`,
@@ -1760,7 +1842,16 @@ export const bulkBookingsApi = {
     markBulkBookingIdsDeleted([strId]);
     const current = _getAllSystemBulkBookings();
     _saveAllSystemBulkBookings(current.filter((b) => String(b.id) !== strId));
-    broadcastCloudSync("DELETE_BULK", { id: strId });
+
+    if (API_BASE_URL) {
+      try {
+        await apiRequest(`/api/bulk-bookings/${id}`, { method: "DELETE" });
+      } catch {
+        // Continue with local tombstone
+      }
+    } else {
+      broadcastCloudSync("DELETE_BULK", { id: strId });
+    }
     return { success: true };
   },
 };
