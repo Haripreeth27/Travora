@@ -29,7 +29,7 @@ public class SecurityConfig {
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            @Value("${app.cors.allowed-origins:http://localhost:3001}") String allowedOrigins
+            @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173,http://localhost:3001}") String allowedOrigins
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.allowedOrigins = allowedOrigins;
@@ -62,6 +62,7 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers(
+                                "/api/auth/users",
                                 "/api/auth/users/**"
                         ).hasRole("ADMIN")
 

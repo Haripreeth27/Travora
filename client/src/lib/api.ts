@@ -430,6 +430,34 @@ export async function login(credentials: { username: string; password: string })
     throw new Error("Please enter your password.");
   }
 
+  // If a live API backend is configured, attempt authoritative backend authentication first
+  if (API_BASE_URL) {
+    try {
+      const response = await apiRequest<Partial<AuthUser> & { token?: string; role?: string }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+        skipAuth: true,
+        timeoutMs: 3000,
+      });
+      const role = String(response.role || "").toUpperCase() as Role;
+      if (response.token && response.username && VALID_ROLES.includes(role) && response.id !== undefined && response.id !== null) {
+        return { ...response, id: Number(response.id), role, token: response.token } as AuthUser;
+      }
+    } catch (err: any) {
+      // If the backend actively rejected with invalid credentials or inactive account, raise error directly
+      if (
+        err?.message &&
+        !err.message.includes("not reached") &&
+        !err.message.includes("failed to fetch") &&
+        !err.message.includes("Failed to fetch") &&
+        !err.message.includes("NetworkError")
+      ) {
+        throw err;
+      }
+      // Otherwise backend is offline/unreachable; continue to fallback demo accounts below
+    }
+  }
+
   const userLower = rawUser.toLowerCase();
   const passLower = rawPass.toLowerCase();
 
@@ -524,24 +552,6 @@ export async function login(credentials: { username: string; password: string })
       employeeId: "EMP-2026",
       token: "jwt-employee-auth-token",
     };
-  }
-
-  // If a custom username is used and a live API base URL is provided, attempt backend login with timeout
-  if (API_BASE_URL) {
-    try {
-      const response = await apiRequest<Partial<AuthUser> & { token?: string; role?: string }>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-        skipAuth: true,
-        timeoutMs: 1200,
-      });
-      const role = String(response.role || "").toUpperCase() as Role;
-      if (response.token && response.username && VALID_ROLES.includes(role) && response.id !== undefined && response.id !== null) {
-        return { ...response, id: Number(response.id), role, token: response.token } as AuthUser;
-      }
-    } catch {
-      // Backend offline or unreachable fallback
-    }
   }
 
   // Reject invalid credentials

@@ -300,13 +300,13 @@ public class TravelRequestService {
     public void deleteAllTravelRequests() {
         User user = getCurrentUser();
 
-        if (user.getRole() == com.traveldesk.backend.auth.Role.EMPLOYEE) {
-            Employee employee = getEmployeeForUser(user);
-            List<TravelRequest> ownRequests =
-                    travelRequestRepository.findByEmployeeId(employee.getId());
-            travelRequestRepository.deleteAll(ownRequests);
-        } else {
-            travelRequestRepository.deleteAll();
+        if (user.getRole() != com.traveldesk.backend.auth.Role.ADMIN) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Only administrators can delete all travel requests"
+            );
         }
+
+        travelRequestRepository.deleteAll();
     }
 }

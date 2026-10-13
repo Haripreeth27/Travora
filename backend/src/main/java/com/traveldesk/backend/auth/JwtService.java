@@ -14,9 +14,18 @@ public class JwtService {
 
     private final SecretKey secretKey;
 
-    public JwtService(@Value("${app.jwt.secret:}") String configuredSecret) {
+    public JwtService(
+            @Value("${app.jwt.secret:}") String configuredSecret,
+            @Value("${spring.profiles.active:}") String activeProfiles
+    ) {
+        boolean isProduction = activeProfiles != null && (
+                activeProfiles.contains("prod") || activeProfiles.contains("production")
+        );
         if (configuredSecret == null || configuredSecret.isBlank()) {
-            // Safe local fallback: never persist or log this key. Tokens expire on restart.
+            if (isProduction) {
+                throw new IllegalStateException("Production environment requires TRAVORA_JWT_SECRET to be configured (at least 32 bytes).");
+            }
+            // Safe local dev fallback: never persist or log this key. Tokens expire on restart.
             this.secretKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
         } else {
             byte[] secretBytes = configuredSecret.getBytes(StandardCharsets.UTF_8);

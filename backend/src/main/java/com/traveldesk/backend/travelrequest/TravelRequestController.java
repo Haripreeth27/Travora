@@ -19,11 +19,13 @@ public class TravelRequestController {
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<TravelRequest> getAllTravelRequests() {
         return travelRequestService.getAllTravelRequests();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public TravelRequest getTravelRequestById(
             @PathVariable Long id
     ) {
@@ -66,6 +68,7 @@ public class TravelRequestController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TRAVEL_DESK', 'EMPLOYEE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTravelRequest(
             @PathVariable Long id
@@ -74,6 +77,7 @@ public class TravelRequestController {
     }
 
     @DeleteMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAllTravelRequests() {
         travelRequestService.deleteAllTravelRequests();

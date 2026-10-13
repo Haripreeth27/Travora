@@ -1,6 +1,7 @@
 package com.traveldesk.backend.auth;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 @Table(name = "users")
@@ -13,6 +14,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 
