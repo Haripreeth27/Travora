@@ -1772,5 +1772,45 @@ export const healthApi = {
   },
 };
 
+export async function uploadDocument(file: File): Promise<{
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  sizeBytes: number;
+  downloadUrl: string;
+}> {
+  if (API_BASE_URL) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("travora_token") : null;
+    const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(errText || "Failed to upload document to server.");
+    }
+    return await res.json();
+  }
+
+  // Standalone offline fallback
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve({
+        id: "local-" + Date.now(),
+        originalFileName: file.name,
+        contentType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+        downloadUrl: reader.result as string,
+      });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export const API_CONFIG = { baseUrl: API_BASE_URL };
 
