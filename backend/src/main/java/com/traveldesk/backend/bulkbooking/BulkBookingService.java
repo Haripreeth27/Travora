@@ -59,6 +59,8 @@ public class BulkBookingService {
         existing.setItineraryNotes(updated.getItineraryNotes());
         existing.setCoordinatorName(updated.getCoordinatorName());
         existing.setStatus(updated.getStatus());
+        existing.setAttachmentName(updated.getAttachmentName());
+        existing.setAttachmentData(updated.getAttachmentData());
 
         if (updated.getPassengerList() != null && !updated.getPassengerList().isEmpty()) {
             existing.setPassengerList(updated.getPassengerList());

@@ -1931,6 +1931,45 @@ function GroupManifestModal({
               <strong>Logistics instructions: </strong> {currentBooking.itineraryNotes}
             </div>
           )}
+          {currentBooking.attachmentData && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <FileText size={22} className="text-red-500 shrink-0" />
+                <div>
+                  <strong style={{ fontSize: 13, color: "var(--ink)", display: "block" }}>
+                    {currentBooking.attachmentName || "Group_Movement_Voucher.pdf"}
+                  </strong>
+                  <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>
+                    Attached Travel Document & Itinerary Voucher
+                  </span>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
+                  onClick={() => {
+                    const w = window.open("");
+                    if (w) {
+                      w.document.write(`<iframe src="${currentBooking.attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
+                      w.document.title = currentBooking.attachmentName || "Group Voucher PDF";
+                    }
+                  }}
+                >
+                  <Eye size={13} /> View PDF
+                </button>
+                <a
+                  href={currentBooking.attachmentData}
+                  download={currentBooking.attachmentName || `${currentBooking.groupReference}_voucher.pdf`}
+                  className="button button-primary"
+                  style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
+                >
+                  <Download size={13} /> Download PDF
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Approver Sign-off Section */}
@@ -2378,6 +2417,31 @@ function BulkBookingDialog({
     booking?.passengerList || []
   );
 
+  const [attachmentName, setAttachmentName] = useState(booking?.attachmentName || "");
+  const [attachmentType, setAttachmentType] = useState(
+    booking?.attachmentName?.toLowerCase().endsWith(".pdf") ? "application/pdf" : ""
+  );
+  const [attachmentData, setAttachmentData] = useState(booking?.attachmentData || "");
+  const [attachmentSize, setAttachmentSize] = useState("");
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size cannot exceed 10MB.");
+      return;
+    }
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachmentName(file.name);
+      setAttachmentType(file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream"));
+      setAttachmentData(reader.result as string);
+      setAttachmentSize((file.size / 1024).toFixed(0) + " KB");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const [newPaxName, setNewPaxName] = useState("");
   const [newPaxDept, setNewPaxDept] = useState("Site Operations");
 
@@ -2483,6 +2547,8 @@ function BulkBookingDialog({
         passengerList: finalPassengers,
         passengerManifestSummary: `${finalPassengers.length} travelers manifest attached`,
         coordinatorName: "Travel Desk Operations (123456)",
+        attachmentName: attachmentName || undefined,
+        attachmentData: attachmentData || undefined,
       };
 
       if (booking?.id) {
@@ -2743,6 +2809,77 @@ function BulkBookingDialog({
                     + and {passengers.length - 15} more travelers in manifest roster
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          <div className="field">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Attach Group Ticket / Quotation / Itinerary PDF</span>
+              <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>PDF or Image (up to 10MB)</span>
+            </div>
+            {!attachmentData ? (
+              <label className="ticket-upload-box" style={{ padding: "16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, borderRadius: 12, border: "2px dashed var(--line)", background: "var(--surface-soft)" }}>
+                <input
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg,image/webp"
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                />
+                <Upload size={22} className="text-amber-500" />
+                <strong style={{ fontSize: 13, color: "var(--ink)" }}>Click to attach PDF ticket details or itinerary voucher</strong>
+                <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>Supports PDF, PNG, JPG, or WEBP documents</span>
+              </label>
+            ) : (
+              <div>
+                <div className="ticket-file-chip" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, background: "rgba(59, 130, 246, 0.08)", border: "1px solid rgba(59, 130, 246, 0.25)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    {attachmentType.includes("pdf") || attachmentName.toLowerCase().endsWith(".pdf") ? (
+                      <FileText size={22} className="text-red-500 shrink-0" />
+                    ) : (
+                      <ImageIcon size={22} className="text-emerald-500 shrink-0" />
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--ink)" }}>
+                        {attachmentName}
+                      </strong>
+                      <small style={{ fontSize: 11, color: "var(--ink-muted)" }}>
+                        {attachmentType.includes("pdf") || attachmentName.toLowerCase().endsWith(".pdf") ? "PDF Document" : "Image File"}
+                        {attachmentSize ? ` · ${attachmentSize}` : ""}
+                      </small>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      style={{ padding: "4px 8px", fontSize: 11, gap: 4 }}
+                      onClick={() => {
+                        const w = window.open("");
+                        if (w) {
+                          w.document.write(`<iframe src="${attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
+                          w.document.title = attachmentName || "Attachment Preview";
+                        }
+                      }}
+                      title="Preview PDF in new window"
+                    >
+                      <Eye size={13} /> Preview
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => {
+                        setAttachmentData("");
+                        setAttachmentName("");
+                        setAttachmentType("");
+                        setAttachmentSize("");
+                      }}
+                      title="Remove attachment"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -3121,19 +3258,38 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
           )}
 
           {booking?.attachmentData && (
-            <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(59, 130, 246, 0.05)", border: "1px solid rgba(59, 130, 246, 0.2)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(59, 130, 246, 0.05)", border: "1px solid rgba(59, 130, 246, 0.2)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <FileText size={18} className="text-blue-500 shrink-0" />
-                <span style={{ fontSize: 12, fontWeight: 600 }}>Attached Ticket Document: {booking.attachmentName || "ticket.pdf"}</span>
+                <FileText size={20} className="text-red-500 shrink-0" />
+                <div>
+                  <strong style={{ fontSize: 12, display: "block", color: "var(--ink)" }}>Attached Ticket Document: {booking.attachmentName || "ticket.pdf"}</strong>
+                  <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>Confirmed electronic ticket voucher</span>
+                </div>
               </div>
-              <a
-                href={booking.attachmentData}
-                download={booking.attachmentName || "ticket_voucher"}
-                className="button button-ghost"
-                style={{ padding: "4px 10px", fontSize: 11 }}
-              >
-                <Download size={13} /> Download copy
-              </a>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
+                  onClick={() => {
+                    const w = window.open("");
+                    if (w) {
+                      w.document.write(`<iframe src="${booking.attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
+                      w.document.title = booking.attachmentName || "Ticket Document Preview";
+                    }
+                  }}
+                >
+                  <Eye size={13} /> View PDF
+                </button>
+                <a
+                  href={booking.attachmentData}
+                  download={booking.attachmentName || "ticket_voucher"}
+                  className="button button-primary"
+                  style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
+                >
+                  <Download size={13} /> Download copy
+                </a>
+              </div>
             </div>
           )}
 
@@ -4572,13 +4728,32 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
               </label>
             ) : (
               <div>
-                <div className="ticket-file-chip">
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                    {attachmentType.includes("pdf") ? <FileText size={20} className="text-red-500 shrink-0" /> : <ImageIcon size={20} className="text-emerald-500 shrink-0" />}
-                    <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attachmentName}</span>
-                    <small style={{ opacity: 0.7, fontSize: 11 }}>({attachmentSize})</small>
+                <div className="ticket-file-chip" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    {attachmentType.includes("pdf") || attachmentName.toLowerCase().endsWith(".pdf") ? <FileText size={20} className="text-red-500 shrink-0" /> : <ImageIcon size={20} className="text-emerald-500 shrink-0" />}
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{attachmentName}</span>
+                      <small style={{ opacity: 0.7, fontSize: 11 }}>{attachmentType.includes("pdf") || attachmentName.toLowerCase().endsWith(".pdf") ? "PDF Ticket" : "Image File"}{attachmentSize ? ` (${attachmentSize})` : ""}</small>
+                    </div>
                   </div>
-                  <button type="button" className="icon-button" onClick={() => { setAttachmentData(""); setAttachmentName(""); setAttachmentType(""); setAttachmentSize(""); }} title="Remove attachment"><X size={14} /></button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      style={{ padding: "4px 8px", fontSize: 11, gap: 4 }}
+                      onClick={() => {
+                        const w = window.open("");
+                        if (w) {
+                          w.document.write(`<iframe src="${attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
+                          w.document.title = attachmentName || "Ticket Document Preview";
+                        }
+                      }}
+                      title="Preview document in new window"
+                    >
+                      <Eye size={13} /> Preview
+                    </button>
+                    <button type="button" className="icon-button" onClick={() => { setAttachmentData(""); setAttachmentName(""); setAttachmentType(""); setAttachmentSize(""); }} title="Remove attachment"><X size={14} /></button>
+                  </div>
                 </div>
                 {attachmentType.includes("image") && <img src={attachmentData} alt="Ticket preview" className="ticket-attachment-preview" style={{ marginTop: 8 }} />}
               </div>
@@ -4822,13 +4997,32 @@ function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClo
               </label>
             ) : (
               <div>
-                <div className="ticket-file-chip">
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                    {attachmentType?.includes("pdf") ? <FileText size={20} className="text-red-500 shrink-0" /> : <ImageIcon size={20} className="text-emerald-500 shrink-0" />}
-                    <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attachmentName || "Attached document"}</span>
-                    {attachmentSize && <small style={{ opacity: 0.7, fontSize: 11 }}>({attachmentSize})</small>}
+                <div className="ticket-file-chip" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    {attachmentType?.includes("pdf") || attachmentName?.toLowerCase().endsWith(".pdf") ? <FileText size={20} className="text-red-500 shrink-0" /> : <ImageIcon size={20} className="text-emerald-500 shrink-0" />}
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontWeight: 600, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{attachmentName || "Attached document"}</span>
+                      <small style={{ opacity: 0.7, fontSize: 11 }}>{attachmentType?.includes("pdf") || attachmentName?.toLowerCase().endsWith(".pdf") ? "PDF Ticket" : "Image File"}{attachmentSize ? ` (${attachmentSize})` : ""}</small>
+                    </div>
                   </div>
-                  <button type="button" className="icon-button" onClick={() => { setAttachmentData(""); setAttachmentName(""); setAttachmentType(""); setAttachmentSize(""); }} title="Remove attachment"><X size={14} /></button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      style={{ padding: "4px 8px", fontSize: 11, gap: 4 }}
+                      onClick={() => {
+                        const w = window.open("");
+                        if (w) {
+                          w.document.write(`<iframe src="${attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
+                          w.document.title = attachmentName || "Ticket Document Preview";
+                        }
+                      }}
+                      title="Preview document in new window"
+                    >
+                      <Eye size={13} /> Preview
+                    </button>
+                    <button type="button" className="icon-button" onClick={() => { setAttachmentData(""); setAttachmentName(""); setAttachmentType(""); setAttachmentSize(""); }} title="Remove attachment"><X size={14} /></button>
+                  </div>
                 </div>
                 {attachmentType?.includes("image") && <img src={attachmentData} alt="Ticket preview" className="ticket-attachment-preview" style={{ marginTop: 8 }} />}
               </div>
