@@ -484,7 +484,7 @@ function Dashboard({ user }: { user: AuthUser }) {
     <PageTitle meta={pageMeta["/employee"]} />
     <section className="welcome-grid">
       <div className="welcome-card"><div className="welcome-copy"><span className="card-kicker">AUTHENTICATED EMPLOYEE WORKSPACE</span><h2>Good to see you, {user.username}.</h2><p>Here’s what’s happening with your travel today.</p><div className="welcome-actions"><Link href="/employee/plan-trip" className="button button-primary"><Plus size={17} /> Plan a trip</Link><Link href="/employee/journeys" className="button button-ghost">View journeys <ArrowUpRight size={16} /></Link></div></div><div className="welcome-orbit"><div className="orbit-ring orbit-ring-one" /><div className="orbit-ring orbit-ring-two" /><div className="orbit-core"><Plane size={27} /></div><span className="orbit-label orbit-label-one">Plan</span><span className="orbit-label orbit-label-two">Approve</span><span className="orbit-label orbit-label-three">Go</span></div></div>
-      <div className="upcoming-card"><div className="section-title-row"><div><span className="card-kicker">NEXT JOURNEY</span><h3>{upcoming?.destination || "No upcoming journeys"}</h3></div><span className="round-arrow"><ArrowUpRight size={17} /></span></div>{upcoming ? <><div className="route-line"><span>{upcoming.from}</span><span className="route-track"><span className="route-dot" /><span className="route-dash" /><Plane size={14} /></span><span>{upcoming.to}</span></div><div className="upcoming-meta"><div><CalendarDays size={15} /><span>{upcoming.dates}</span></div><div><BriefcaseBusiness size={15} /><span>{upcoming.project}</span></div></div><div className="upcoming-status"><StatusBadge status={upcoming.status} /><span>Current status from Travora</span></div>{upcoming.status === "Approved" || upcoming.status === "Booked" ? <div className="approver-box-approved"><ShieldCheck size={18} className="shrink-0" /><div><strong>✓ Approver Decision: Approved</strong><p style={{ fontSize: 12, margin: "2px 0 0" }}>Approved by {upcoming.approverName || "Assigned Manager"}{upcoming.approvalDate ? ` on ${formatRequestDate(upcoming.approvalDate)}` : ""}. Authorized for ticketing.</p></div></div> : upcoming.status === "Pending approval" ? <div className="approver-box-pending"><Clock3 size={18} className="shrink-0" /><div><strong>⏳ Pending Approver Decision</strong><p style={{ fontSize: 12, margin: "2px 0 0" }}>Sent to Travel Desk for visibility. Manager sign-off is pending.</p></div></div> : null}{upcomingBooking && <div className="ticket-attachment-card"><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span className="card-kicker">CONFIRMED TICKET</span><span className="ticket-badge"><TicketCheck size={12} /> {upcomingBooking.bookingReference}</span></div><div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600 }}><span>{upcomingBooking.provider || "Carrier"} · {upcomingBooking.bookingType}</span>{upcomingBooking.cost !== undefined && <span>₹{Number(upcomingBooking.cost).toLocaleString("en-IN")}</span>}</div>{upcomingBooking.notes && <p style={{ fontSize: 12, margin: 0, opacity: 0.85 }}>{upcomingBooking.notes}</p>}{upcomingBooking.attachmentData && <div style={{ marginTop: 4 }}>{upcomingBooking.attachmentType?.includes("image") ? <img src={upcomingBooking.attachmentData} alt="Ticket copy" className="ticket-attachment-preview" /> : <div className="ticket-doc-card"><FileText size={22} className="text-red-500 shrink-0" /><div style={{ flex: 1, minWidth: 0 }}><strong style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{upcomingBooking.attachmentName || "e-ticket.pdf"}</strong><small style={{ fontSize: 11, opacity: 0.75 }}>PDF Ticket Document</small></div></div>}<a href={upcomingBooking.attachmentData} download={upcomingBooking.attachmentName || "ticket"} target="_blank" rel="noreferrer" className="button button-small button-primary" style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%" }}><Download size={13} /> View / Download {upcomingBooking.attachmentType?.includes("pdf") ? "PDF Ticket" : "Ticket Photo"}</a></div>}</div>}</> : <EmptyState icon={<Compass size={20} />} title={loading ? "Loading journeys" : "No journeys yet"} description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."} action={!loading && <Link className="button button-primary button-small" href="/employee/plan-trip">Plan a trip</Link>} />}</div>
+      <div className="upcoming-card"><div className="section-title-row"><div><span className="card-kicker">NEXT JOURNEY</span><h3>{upcoming?.destination || "No upcoming journeys"}</h3></div><span className="round-arrow"><ArrowUpRight size={17} /></span></div>{upcoming ? <><div className="route-line"><span>{upcoming.from}</span><span className="route-track"><span className="route-dot" /><span className="route-dash" /><Plane size={14} /></span><span>{upcoming.to}</span></div><div className="upcoming-meta"><div><CalendarDays size={15} /><span>{upcoming.dates}</span></div><div><BriefcaseBusiness size={15} /><span>{upcoming.project}</span></div></div><div className="upcoming-status"><StatusBadge status={upcoming.status} /><span>Current status from Travora</span></div>{upcoming.status === "Approved" || upcoming.status === "Booked" ? <div className="approver-box-approved"><ShieldCheck size={18} className="shrink-0" /><div><strong>Approver Decision: Approved</strong><p style={{ fontSize: 12, margin: "2px 0 0" }}>Approved by {upcoming.approverName || "Assigned Manager"}{upcoming.approvalDate ? ` on ${formatRequestDate(upcoming.approvalDate)}` : ""}. Authorized for ticketing.</p></div></div> : upcoming.status === "Pending approval" ? <div className="approver-box-pending"><Clock3 size={18} className="shrink-0" /><div><strong>Pending Approver Decision</strong><p style={{ fontSize: 12, margin: "2px 0 0" }}>Sent to Travel Desk for visibility. Manager sign-off is pending.</p></div></div> : null}{upcomingBooking && <div className="ticket-attachment-card"><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span className="card-kicker">CONFIRMED TICKET</span><span className="ticket-badge"><TicketCheck size={12} /> {upcomingBooking.bookingReference}</span></div><div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600 }}><span>{upcomingBooking.provider || "Carrier"} · {upcomingBooking.bookingType}</span>{upcomingBooking.cost !== undefined && <span>₹{Number(upcomingBooking.cost).toLocaleString("en-IN")}</span>}</div>{upcomingBooking.notes && <p style={{ fontSize: 12, margin: 0, opacity: 0.85 }}>{upcomingBooking.notes}</p>}{upcomingBooking.attachmentData && <div style={{ marginTop: 4 }}>{upcomingBooking.attachmentType?.includes("image") ? <img src={upcomingBooking.attachmentData} alt="Ticket copy" className="ticket-attachment-preview" /> : <div className="ticket-doc-card"><FileText size={22} className="text-red-500 shrink-0" /><div style={{ flex: 1, minWidth: 0 }}><strong style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{upcomingBooking.attachmentName || "e-ticket.pdf"}</strong><small style={{ fontSize: 11, opacity: 0.75 }}>PDF Ticket Document</small></div></div>}<a href={upcomingBooking.attachmentData} download={upcomingBooking.attachmentName || "ticket"} target="_blank" rel="noreferrer" className="button button-small button-primary" style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%" }}><Download size={13} /> View / Download {upcomingBooking.attachmentType?.includes("pdf") ? "PDF Ticket" : "Ticket Photo"}</a></div>}</div>}</> : <EmptyState icon={<Compass size={20} />} title={loading ? "Loading journeys" : "No journeys yet"} description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."} action={!loading && <Link className="button button-primary button-small" href="/employee/plan-trip">Plan a trip</Link>} />}</div>
     </section>
     <div className="section-title-row section-title-spaced"><div><span className="card-kicker">AT A GLANCE</span><h2 className="section-heading">Your travel pulse</h2></div><span className="data-note"><ShieldCheck size={13} /> Live backend data</span></div>
     <section className="stats-grid"><StatCard label="Total trips" value={String(stats.total).padStart(2, "0")} detail="From your account" icon={<Compass size={18} />} /><StatCard label="Upcoming trips" value={String(stats.upcoming).padStart(2, "0")} detail="Approved or booked" icon={<CalendarDays size={18} />} accent="stat-accent" /><StatCard label="Pending requests" value={String(stats.pending).padStart(2, "0")} detail="Needs approval" icon={<Clock3 size={18} />} /><StatCard label="Completed trips" value={String(stats.completed).padStart(2, "0")} detail="From your account" icon={<Check size={18} />} /></section>
@@ -894,7 +894,7 @@ function JourneyDrawer({ journey, onClose, onDeleted }: { journey: Journey; onCl
           <div className="approver-box-approved">
             <ShieldCheck size={20} className="shrink-0" />
             <div>
-              <strong>✓ Approver Decision: Approved</strong>
+              <strong>Approver Decision: Approved</strong>
               <p style={{ fontSize: 12, margin: "2px 0 0" }}>
                 Approved by {journey.approverName || "Assigned Manager"}
                 {journey.approvalDate ? ` on ${formatRequestDate(journey.approvalDate)}` : ""}
@@ -906,7 +906,7 @@ function JourneyDrawer({ journey, onClose, onDeleted }: { journey: Journey; onCl
           <div className="approver-box-pending">
             <Clock3 size={20} className="shrink-0" />
             <div>
-              <strong>⏳ Not Approved Yet (Pending Approver)</strong>
+              <strong>Pending Approver Decision</strong>
               <p style={{ fontSize: 12, margin: "2px 0 0" }}>
                 This request is visible to the Travel Desk for advance preparation. Approver sign-off is pending.
               </p>
@@ -3122,9 +3122,9 @@ function getDepartureUrgency(journey: Journey): { days: number | null; isUrgent:
   const startTrip = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const diffDays = Math.round((startTrip - startToday) / (1000 * 60 * 60 * 24));
   if (diffDays < 0) return { days: diffDays, isUrgent: false, badgeText: "Departed" };
-  if (diffDays === 0) return { days: diffDays, isUrgent: true, badgeText: "🚨 Departing Today" };
-  if (diffDays === 1) return { days: diffDays, isUrgent: true, badgeText: "🚨 Tomorrow (<24h)" };
-  if (diffDays <= 2) return { days: diffDays, isUrgent: true, badgeText: `🚨 In ${diffDays} days (<48h)` };
+  if (diffDays === 0) return { days: diffDays, isUrgent: true, badgeText: "Departing Today" };
+  if (diffDays === 1) return { days: diffDays, isUrgent: true, badgeText: "Tomorrow (<24h)" };
+  if (diffDays <= 2) return { days: diffDays, isUrgent: true, badgeText: `In ${diffDays} days (<48h)` };
   if (diffDays <= 7) return { days: diffDays, isUrgent: false, badgeText: `In ${diffDays} days` };
   return { days: diffDays, isUrgent: false, badgeText: "" };
 }
@@ -3242,7 +3242,7 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
             </div>
             <div className="voucher-meta-item">
               <small>Negotiated Savings</small>
-              <strong style={{ color: "var(--green)" }}>{booking?.savings ? `₹${Number(booking.savings).toLocaleString("en-IN")}` : "Corporate Tier"}</strong>
+              <strong style={{ color: "var(--green)" }}>{booking?.savings ? `₹${Number(booking.savings).toLocaleString("en-IN")}` : "Corporate Standard Rate"}</strong>
             </div>
             <div className="voucher-meta-item">
               <small>Request ID</small>
@@ -3834,7 +3834,11 @@ function TravelDesk() {
                   className={`workstation-tab ${statusTab === "URGENT" ? "active" : ""}`}
                   onClick={() => setStatusTab("URGENT")}
                 >
-                  🚨 Urgent (&lt;48h) <span className="workstation-tab-count">{urgentDepartures.length}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                    Urgent (&lt;48h)
+                  </span>
+                  <span className="workstation-tab-count">{urgentDepartures.length}</span>
                 </button>
                 <button
                   type="button"
@@ -3946,7 +3950,8 @@ function TravelDesk() {
                               {urgency.badgeText && (
                                 <div style={{ marginTop: 3 }}>
                                   <span className={urgency.isUrgent ? "urgent-badge-pill" : "meta-chip"} style={{ fontSize: 10 }}>
-                                    {urgency.badgeText}
+                                    {urgency.isUrgent && <AlertTriangle size={11} className="shrink-0" />}
+                                    <span>{urgency.badgeText}</span>
                                   </span>
                                 </div>
                               )}
@@ -4151,12 +4156,12 @@ function TravelDesk() {
               <div className="section-title-row">
                 <div>
                   <span className="card-kicker">CARRIER ANALYTICS</span>
-                  <h3 className="section-heading" style={{ fontSize: 18 }}>Provider & Airline Split</h3>
+                  <h3 className="section-heading" style={{ fontSize: 18 }}>Airline & Provider Distribution</h3>
                 </div>
                 <Plane size={18} className="panel-icon" />
               </div>
               <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "4px 0 16px" }}>
-                Volume breakdown across corporate carriers and travel vendors.
+                Volume breakdown across contracted airlines, railways, and corporate transit providers.
               </p>
 
               {carrierStats.length > 0 ? (
@@ -4165,7 +4170,9 @@ function TravelDesk() {
                     <div className="carrier-stat-row" key={stat.name}>
                       <div className="carrier-stat-meta">
                         <span><strong>{stat.name}</strong></span>
-                        <span style={{ color: "var(--ink-muted)", fontSize: 11 }}>{stat.count} trip{stat.count === 1 ? "" : "s"} ({stat.pct}%)</span>
+                        <span className="meta-chip" style={{ fontSize: 11, padding: "2px 8px" }}>
+                          <strong>{stat.count}</strong> {stat.count === 1 ? "trip" : "trips"} · <span style={{ color: "var(--green)", fontWeight: 700 }}>{stat.pct}% share</span>
+                        </span>
                       </div>
                       <div className="carrier-track">
                         <div
@@ -4200,32 +4207,36 @@ function TravelDesk() {
                 </div>
                 <TrendingUp size={18} className="panel-icon" />
               </div>
+              <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "4px 0 16px" }}>
+                Corporate cost optimization, negotiated rate savings, and department volume.
+              </p>
 
-              <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
+              <div style={{ display: "grid", gap: 14 }}>
                 <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
-                  <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--green)" }}>Total Negotiated Savings</small>
-                  <strong style={{ display: "block", fontSize: 24, color: "var(--green)", marginTop: 2 }}>
+                  <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)" }}>Total Negotiated Savings</small>
+                  <strong style={{ display: "block", fontSize: 24, fontWeight: 800, color: "var(--green)", marginTop: 2 }}>
                     ₹{totalSavings.toLocaleString("en-IN")}
                   </strong>
-                  <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>Saved via corporate rates and early bookings</span>
+                  <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>Saved via corporate airline tariffs and advance booking windows</span>
                 </div>
 
                 <div style={{ padding: "14px 18px", borderRadius: 12, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
-                  <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-muted)" }}>Average Ticket Cost</small>
-                  <strong style={{ display: "block", fontSize: 20, color: "var(--ink)", marginTop: 2 }}>
+                  <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-muted)" }}>Average Ticket Expenditure</small>
+                  <strong style={{ display: "block", fontSize: 20, fontWeight: 800, color: "var(--ink)", marginTop: 2 }}>
                     ₹{avgSpend.toLocaleString("en-IN")} <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-muted)" }}>/ confirmed trip</span>
                   </strong>
+                  <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>Mean ticket spend across fulfilled employee journeys</span>
                 </div>
 
                 {/* Top department loads */}
-                <div style={{ marginTop: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-muted)", display: "block", marginBottom: 8 }}>
-                    Top Department Travel Demands
+                <div style={{ marginTop: 2 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-muted)", display: "block", marginBottom: 8 }}>
+                    Corporate Demand by Department
                   </span>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {departmentStats.map(([dept, count]) => (
-                      <span key={dept} className="meta-chip meta-chip-primary" style={{ fontSize: 11 }}>
-                        {dept}: <strong>{count}</strong>
+                      <span key={dept} className="meta-chip meta-chip-primary" style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <Building2 size={11} className="opacity-70" /> {dept}: <strong>{count} {count === 1 ? "trip" : "trips"}</strong>
                       </span>
                     ))}
                   </div>
@@ -4303,7 +4314,8 @@ function TravelDesk() {
                               {urgency.badgeText && (
                                 <div style={{ marginTop: 2 }}>
                                   <span className={urgency.isUrgent ? "urgent-badge-pill" : "meta-chip"} style={{ fontSize: 10 }}>
-                                    {urgency.badgeText}
+                                    {urgency.isUrgent && <AlertTriangle size={11} className="shrink-0" />}
+                                    <span>{urgency.badgeText}</span>
                                   </span>
                                 </div>
                               )}
@@ -4578,7 +4590,7 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
           <div className="approver-box-approved">
             <ShieldCheck size={20} className="shrink-0" />
             <div>
-              <strong>✓ Approver Decision: Approved</strong>
+              <strong>Approver Decision: Approved</strong>
               <p style={{ fontSize: 12, margin: "2px 0 0" }}>
                 Approved by {journey.approverName || "Assigned Manager"}. Authorized for confirmed ticketing and issuance.
               </p>
@@ -4588,7 +4600,7 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
           <div className="approver-box-pending">
             <Clock3 size={20} className="shrink-0" />
             <div>
-              <strong>⏳ Notice: Trip Not Approved Yet</strong>
+              <strong>Notice: Trip Not Approved Yet</strong>
               <p style={{ fontSize: 12, margin: "2px 0 0" }}>
                 This trip was raised by the employee and routed to Travel Desk for visibility. Manager sign-off is pending.
               </p>

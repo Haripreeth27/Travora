@@ -12,6 +12,8 @@ import {
   FileText,
   HeartHandshake,
   Sparkles,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { REGISTERED_EMPLOYEES, type AuthUser } from "../lib/api";
@@ -82,6 +84,8 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
+  const upcomingTrips = journeys.filter((j) => j.status === "Approved" || j.status === "Booked").length;
+  const pendingTrips = journeys.filter((j) => j.status === "Pending approval").length;
   const completedTrips = journeys.filter((j) => j.status === "Completed").length;
 
   return (
@@ -145,35 +149,35 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
             <span className="stat-icon"><Compass size={18} /></span>
             <span className="stat-detail">Lifetime journeys</span>
           </div>
-          <strong className="stat-value">{journeys.length || 6}</strong>
+          <strong className="stat-value">{journeys.length}</strong>
           <span className="stat-label">Trips coordinated through Travora</span>
         </div>
 
         <div className="stat-card stat-accent">
           <div className="stat-card-top">
+            <span className="stat-icon"><CalendarDays size={18} /></span>
+            <span className="stat-detail">Upcoming journeys</span>
+          </div>
+          <strong className="stat-value">{upcomingTrips}</strong>
+          <span className="stat-label">Approved or scheduled to depart</span>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-card-top">
+            <span className="stat-icon"><Clock3 size={18} /></span>
+            <span className="stat-detail">Pending requests</span>
+          </div>
+          <strong className="stat-value">{pendingTrips}</strong>
+          <span className="stat-label">Awaiting manager or desk action</span>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-card-top">
             <span className="stat-icon"><CheckCircle2 size={18} /></span>
             <span className="stat-detail">Completed journeys</span>
           </div>
-          <strong className="stat-value">{completedTrips || 4}</strong>
-          <span className="stat-label">Returned with zero policy flags</span>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-top">
-            <span className="stat-icon"><Sparkles size={18} /></span>
-            <span className="stat-detail">Carbon Footprint</span>
-          </div>
-          <strong className="stat-value">1.4 tons</strong>
-          <span className="stat-label">100% corporate ESG offset</span>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-top">
-            <span className="stat-icon"><FileText size={18} /></span>
-            <span className="stat-detail">Corporate Tier</span>
-          </div>
-          <strong className="stat-value">Executive</strong>
-          <span className="stat-label">Priority desk & airport fast-track</span>
+          <strong className="stat-value">{completedTrips}</strong>
+          <span className="stat-label">Concluded with full policy compliance</span>
         </div>
       </section>
 

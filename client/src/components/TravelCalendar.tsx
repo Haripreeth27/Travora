@@ -9,6 +9,7 @@ import {
   Sparkles,
   MapPin,
   CalendarDays,
+  X,
 } from "lucide-react";
 import type { Journey } from "../types";
 
@@ -241,8 +242,9 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
                 type="button"
                 onClick={() => setSelectedDayJourneys(null)}
                 className="text-[#839099] hover:text-[#182329] dark:hover:text-white"
+                aria-label="Close"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
