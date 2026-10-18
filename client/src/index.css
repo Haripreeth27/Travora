@@ -3,43 +3,64 @@
 @import "./theme-polish.css";
 @import "./responsive.css";
 
-:root { --ink: #182329; --ink-soft: #52616a; --ink-muted: #839099; --paper: #f5f7f5; --surface: #ffffff; --line: #e2e8e5; --navy: #1f353d; --navy-soft: #29444c; --saffron: #e7a947; --saffron-soft: #fff4de; --sage: #dce8df; --green: #398064; --blue: #547b91; --red: #b15b53; --radius: 16px; --shadow: 0 12px 35px rgba(24, 35, 41, .07); --ease: cubic-bezier(.23, 1, .32, 1); }
+:root {
+  --ink: #101828;
+  --ink-soft: #667085;
+  --ink-muted: #94A3B8;
+  --paper: #F5F7FA;
+  --surface: #FFFFFF;
+  --line: #E4E7EC;
+  --navy: #101828;
+  --navy-soft: #1E293B;
+  --saffron: #14B8A6;
+  --saffron-soft: rgba(20, 184, 166, 0.1);
+  --sage: #CCFBF1;
+  --green: #16A34A;
+  --blue: #2563EB;
+  --red: #DC2626;
+  --radius: 14px;
+  --shadow: 0 4px 20px -2px rgba(16, 24, 40, .06);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
 
 * { box-sizing: border-box; }
 html { background: var(--paper); }
-body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Plus Jakarta Sans", "Manrope", system-ui, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Plus Jakarta Sans", "Manrope", system-ui, -apple-system, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button, a, select { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 button { border: 0; }
 
-.app-shell { min-height: 100vh; display: flex; }
-.desktop-sidebar { width: 252px; flex: 0 0 252px; }
-.sidebar { height: 100vh; position: fixed; z-index: 10; width: 252px; padding: 26px 16px 18px; background: var(--navy); color: #dbe7e4; display: flex; flex-direction: column; }
-.sidebar-top { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 28px; }
-.brand-lockup { display: flex; align-items: center; gap: 9px; color: #f4f7f4; }
-.brand-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px 8px 8px 3px; background: var(--saffron); color: var(--navy); transform: rotate(-8deg); }
-.brand-mark svg { transform: rotate(8deg); }
-.brand-name { font-family: "DM Serif Display", Georgia, serif; font-size: 25px; letter-spacing: -.6px; }
-.workspace-switcher { display: flex; align-items: center; gap: 10px; padding: 11px 10px; margin-bottom: 28px; border: 1px solid rgba(255,255,255,.11); border-radius: 12px; background: rgba(255,255,255,.05); }
-.workspace-avatar { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px; color: var(--navy); background: var(--saffron); font-size: 10px; font-weight: 800; letter-spacing: .04em; }
-.workspace-copy, .profile-copy, .topbar-user-copy { min-width: 0; display: grid; gap: 2px; flex: 1; }
-.workspace-copy span, .profile-copy span, .topbar-user-copy span { color: #98afaa; font-size: 10px; }
-.workspace-copy strong, .profile-copy strong, .topbar-user-copy strong { color: #edf5f1; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.muted-icon { color: #83a09a; }
-.nav-label, .card-kicker, .eyebrow { text-transform: uppercase; letter-spacing: .13em; font-size: 10px; font-weight: 800; }
-.nav-label { padding: 0 12px 9px; color: #6f8b86; }
-.primary-nav { display: grid; gap: 4px; }
-.nav-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px; color: #9bb0ac; border-radius: 9px; transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease); }
-.nav-item:hover { color: #f5faf8; background: rgba(255,255,255,.07); transform: translateX(2px); }
-.nav-item.active { color: #fff; background: #36535a; box-shadow: inset 3px 0 0 var(--saffron); }
-.nav-item.active svg:first-child { color: var(--saffron); }
-.nav-chevron { margin-left: auto; color: #9bb0ac; }
-.sidebar-spacer { flex: 1; min-height: 32px; }
-.sidebar-profile { display: flex; align-items: center; gap: 9px; padding: 14px 10px 13px; border-top: 1px solid rgba(255,255,255,.1); }
-.sidebar-profile .icon-button { color: #7d9994; }
-.logout-link { display: flex; align-items: center; gap: 10px; color: #8ea6a0; font-size: 11px; padding: 9px 10px; transition: color .18s ease; }
-.logout-link:hover { color: #fff; }
+.app-shell { min-height: 100vh; display: flex; background: var(--paper); }
+.desktop-sidebar { width: 256px; flex: 0 0 256px; transition: width 0.25s var(--ease), flex 0.25s var(--ease); }
+.desktop-sidebar.collapsed { width: 78px; flex: 0 0 78px; }
+.sidebar { height: 100vh; position: fixed; z-index: 20; width: 256px; padding: 22px 14px 18px; background: var(--navy); color: #F8FAFC; display: flex; flex-direction: column; border-right: 1px solid rgba(255, 255, 255, 0.08); transition: width 0.25s var(--ease); }
+.sidebar.collapsed { width: 78px; padding: 22px 10px 18px; }
+.sidebar-top { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 22px; }
+.brand-lockup { display: flex; align-items: center; gap: 10px; color: #FFFFFF; font-weight: 700; }
+.brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%); color: #FFFFFF; box-shadow: 0 2px 8px rgba(20, 184, 166, 0.35); }
+.brand-name { font-family: "Outfit", "Plus Jakarta Sans", sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+.workspace-switcher { display: flex; align-items: center; gap: 10px; padding: 10px 10px; margin-bottom: 22px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.04); transition: background 0.2s ease; }
+.workspace-switcher:hover { background: rgba(255,255,255,.08); }
+.workspace-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #FFFFFF; background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%); font-size: 11px; font-weight: 800; letter-spacing: .02em; }
+.workspace-copy, .profile-copy, .topbar-user-copy { min-width: 0; display: grid; gap: 1px; flex: 1; }
+.workspace-copy span, .profile-copy span, .topbar-user-copy span { color: #94A3B8; font-size: 10px; font-weight: 500; }
+.workspace-copy strong, .profile-copy strong, .topbar-user-copy strong { color: #FFFFFF; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.muted-icon { color: #64748B; }
+.nav-label, .card-kicker, .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 700; }
+.nav-label { padding: 8px 10px 6px; color: #64748B; font-size: 10px; }
+.primary-nav { display: grid; gap: 3px; }
+.nav-item { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 12px; color: #94A3B8; border-radius: 10px; font-size: 13px; font-weight: 600; transition: all .18s var(--ease); }
+.nav-item:hover { color: #FFFFFF; background: rgba(255,255,255,.06); transform: translateX(2px); }
+.nav-item.active { color: #FFFFFF; background: rgba(20, 184, 166, 0.14); border: 1px solid rgba(20, 184, 166, 0.35); box-shadow: 0 2px 10px rgba(20, 184, 166, 0.15); }
+.nav-item.active svg:first-child { color: #14B8A6; }
+.nav-chevron { margin-left: auto; color: #64748B; }
+.sidebar-spacer { flex: 1; min-height: 24px; }
+.sidebar-profile { display: flex; align-items: center; gap: 10px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); }
+.sidebar-profile .icon-button { color: #94A3B8; }
+.sidebar-profile .icon-button:hover { color: #FFFFFF; background: rgba(255,255,255,.08); }
+.logout-link { display: flex; align-items: center; gap: 10px; color: #94A3B8; font-size: 12px; font-weight: 600; padding: 8px 10px; border-radius: 8px; transition: color .18s ease, background .18s ease; width: 100%; }
+.logout-link:hover { color: #FFFFFF; background: rgba(255,255,255,.06); }
 .app-main { min-width: 0; flex: 1; }
 .topbar { position:relative; z-index:1002; height: 78px; display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(22px, 4vw, 55px); border-bottom: 1px solid var(--line); background: rgba(245,247,245,.92); backdrop-filter: blur(14px); }
 .topbar-left, .topbar-actions, .breadcrumb, .topbar-user { display: flex; align-items: center; }

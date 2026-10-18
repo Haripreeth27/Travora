@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   CircleHelp,
   Clock3,
   Compass,
@@ -17,6 +18,7 @@ import {
   Filter,
   Headphones,
   LayoutDashboard,
+  Lock,
   LogOut,
   Menu,
   Moon,
@@ -68,6 +70,11 @@ import { Profile } from "./pages/Profile";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { exportToCsv } from "./utils/exportCsv";
+import { SpotlightCard } from "./components/SpotlightCard";
+import { AnimatedCounter } from "./components/AnimatedCounter";
+import { RouteVisualizer } from "./components/RouteVisualizer";
+import { WorkflowTimeline } from "./components/WorkflowTimeline";
+import { SkeletonMetrics, SkeletonTable, SkeletonCard } from "./components/SkeletonLoader";
 
 type Journey = {
   id: string;
@@ -228,40 +235,107 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/admin/reports": { eyebrow: "Administration", title: "Organization reports", description: "Travel patterns to support better planning and policy." },
 };
 
-const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]> = {
+type NavCategory = {
+  category: string;
+  items: { label: string; href: string; icon: ReactNode }[];
+};
+
+const categorizedNavByRole: Record<Role, NavCategory[]> = {
   EMPLOYEE: [
-    { label: "Overview", href: "/employee", icon: <LayoutDashboard size={17} /> },
-    { label: "Plan a trip", href: "/employee/plan-trip", icon: <Plus size={17} /> },
-    { label: "My journeys", href: "/employee/journeys", icon: <Compass size={17} /> },
-    { label: "Calendar", href: "/employee/calendar", icon: <CalendarDays size={17} /> },
-    { label: "Expenses", href: "/employee/expenses", icon: <WalletCards size={17} /> },
-    { label: "Profile", href: "/employee/profile", icon: <UserRound size={17} /> },
-    { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
-    { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
+    {
+      category: "WORKSPACE",
+      items: [
+        { label: "Overview", href: "/employee", icon: <LayoutDashboard size={17} /> },
+        { label: "Plan a trip", href: "/employee/plan-trip", icon: <Plus size={17} /> },
+        { label: "My journeys", href: "/employee/journeys", icon: <Compass size={17} /> },
+        { label: "Calendar", href: "/employee/calendar", icon: <CalendarDays size={17} /> },
+      ],
+    },
+    {
+      category: "FINANCE & PROFILE",
+      items: [
+        { label: "Expenses", href: "/employee/expenses", icon: <WalletCards size={17} /> },
+        { label: "Profile", href: "/employee/profile", icon: <UserRound size={17} /> },
+      ],
+    },
+    {
+      category: "INSIGHTS & SUPPORT",
+      items: [
+        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
+        { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
+      ],
+    },
   ],
   APPROVER: [
-    { label: "Approval queue", href: "/approver", icon: <LayoutDashboard size={17} /> },
-    { label: "Desk bookings", href: "/approver/bookings", icon: <TicketCheck size={17} /> },
-    { label: "Bulk & Group Bookings", href: "/approver/bulk-bookings", icon: <UsersRound size={17} /> },
-    { label: "Approval history", href: "/approver/history", icon: <FileCheck2 size={17} /> },
-    { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
-    { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
+    {
+      category: "MANAGEMENT",
+      items: [
+        { label: "Approval queue", href: "/approver", icon: <LayoutDashboard size={17} /> },
+        { label: "Desk bookings", href: "/approver/bookings", icon: <TicketCheck size={17} /> },
+        { label: "Bulk & Group Bookings", href: "/approver/bulk-bookings", icon: <UsersRound size={17} /> },
+        { label: "Approval history", href: "/approver/history", icon: <FileCheck2 size={17} /> },
+      ],
+    },
+    {
+      category: "INSIGHTS & SUPPORT",
+      items: [
+        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
+        { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
+      ],
+    },
   ],
   TRAVEL_DESK: [
-    { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={17} /> },
-    { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={17} /> },
-    { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={17} /> },
-    { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={17} /> },
-    { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
+    {
+      category: "OPERATIONS",
+      items: [
+        { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={17} /> },
+        { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={17} /> },
+        { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={17} /> },
+        { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={17} /> },
+      ],
+    },
+    {
+      category: "INSIGHTS",
+      items: [
+        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
+      ],
+    },
   ],
   ADMIN: [
-    { label: "Control center", href: "/admin", icon: <LayoutDashboard size={17} /> },
-    { label: "Employees", href: "/admin/employees", icon: <UsersRound size={17} /> },
-    { label: "Travel requests", href: "/admin/requests", icon: <FileText size={17} /> },
-    { label: "Bookings", href: "/admin/bookings", icon: <TicketCheck size={17} /> },
-    { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={17} /> },
-    { label: "Settings", href: "/admin/settings", icon: <Settings2 size={17} /> },
+    {
+      category: "WORKSPACE",
+      items: [
+        { label: "Control center", href: "/admin", icon: <LayoutDashboard size={17} /> },
+      ],
+    },
+    {
+      category: "MANAGEMENT",
+      items: [
+        { label: "Employees", href: "/admin/employees", icon: <UsersRound size={17} /> },
+        { label: "Travel requests", href: "/admin/requests", icon: <FileText size={17} /> },
+        { label: "Bookings", href: "/admin/bookings", icon: <TicketCheck size={17} /> },
+      ],
+    },
+    {
+      category: "INSIGHTS",
+      items: [
+        { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={17} /> },
+      ],
+    },
+    {
+      category: "SYSTEM",
+      items: [
+        { label: "Settings", href: "/admin/settings", icon: <Settings2 size={17} /> },
+      ],
+    },
   ],
+};
+
+const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]> = {
+  EMPLOYEE: categorizedNavByRole.EMPLOYEE.flatMap((c) => c.items),
+  APPROVER: categorizedNavByRole.APPROVER.flatMap((c) => c.items),
+  TRAVEL_DESK: categorizedNavByRole.TRAVEL_DESK.flatMap((c) => c.items),
+  ADMIN: categorizedNavByRole.ADMIN.flatMap((c) => c.items),
 };
 
 const roleLabels: Record<Role, string> = {
@@ -275,7 +349,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`brand-lockup ${compact ? "brand-lockup-compact" : ""}`} aria-label="Travora">
       <span className="brand-mark"><Plane size={16} strokeWidth={2.4} /></span>
-      <span className="brand-name">travora</span>
+      {!compact && <span className="brand-name">travora</span>}
     </div>
   );
 }
@@ -298,35 +372,116 @@ function PageTitle({ meta }: { meta: { eyebrow: string; title: string; descripti
   );
 }
 
-function Sidebar({ role, path, user, onLogout, onClose }: { role: Role; path: string; user: AuthUser; onLogout: () => void; onClose?: () => void }) {
+function Sidebar({
+  role,
+  path,
+  user,
+  onLogout,
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  role: Role;
+  path: string;
+  user: AuthUser;
+  onLogout: () => void;
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
   const initials = (user.username || "Travora").slice(0, 2).toUpperCase();
+  const categories = categorizedNavByRole[role] || [
+    { category: "WORKSPACE", items: navByRole[role] },
+  ];
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-top">
-        <Logo />
-        <button className="icon-button mobile-only" aria-label="Close navigation" onClick={onClose}><X size={18} /></button>
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      <div className="sidebar-top flex items-center justify-between">
+        <Logo compact={collapsed} />
+        <div className="flex items-center gap-1">
+          {onToggleCollapse && (
+            <button
+              type="button"
+              className="sidebar-collapse-toggle hidden md:flex"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          )}
+          <button className="icon-button mobile-only" aria-label="Close navigation" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
       </div>
-      <div className="workspace-switcher">
-        <div className="workspace-avatar">TW</div>
-        <div className="workspace-copy"><span>Travora workspace</span><strong>{roleLabels[role]}</strong></div>
-        <ChevronDown size={15} className="muted-icon" />
+
+      <div className="workspace-switcher" title={collapsed ? "Mahathi Infra Services · Travora" : undefined}>
+        <div className="workspace-avatar">MI</div>
+        {!collapsed && (
+          <div className="workspace-copy">
+            <span className="truncate">Mahathi Infra Services</span>
+            <strong className="truncate">{roleLabels[role]} Portal</strong>
+          </div>
+        )}
+        {!collapsed && <ChevronDown size={14} className="muted-icon shrink-0" />}
       </div>
-      <div className="nav-label">Workspace</div>
-      <nav className="primary-nav" aria-label="Primary navigation">
-        {navByRole[role].map((item) => {
-          const active = path === item.href || (path === "/" && item.href === "/employee");
-          return <Link href={item.href} key={item.href} onClick={onClose} className={`nav-item ${active ? "active" : ""}`}>{item.icon}<span>{item.label}</span>{active && <ChevronRight size={14} className="nav-chevron" />}</Link>;
-        })}
-      </nav>
+
+      <div className="overflow-y-auto flex-1 pr-0.5 space-y-4 custom-scrollbar">
+        {categories.map((cat, idx) => (
+          <div key={idx} className="space-y-1">
+            {!collapsed && <div className="nav-category-header">{cat.category}</div>}
+            <nav className="primary-nav" aria-label={cat.category}>
+              {cat.items.map((item) => {
+                const active = path === item.href || (path === "/" && item.href === "/employee");
+                return (
+                  <Link
+                    href={item.href}
+                    key={item.href}
+                    onClick={onClose}
+                    className={`nav-item ${active ? "active" : ""}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    {item.icon}
+                    {!collapsed && <span>{item.label}</span>}
+                    {!collapsed && active && <ChevronRight size={14} className="nav-chevron" />}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
+
       <div className="sidebar-spacer" />
-      <div className="nav-label">Authenticated account</div>
-      <div className="role-account"><ShieldCheck size={15} /><span>{roleLabels[role]} access</span></div>
-      <div className="sidebar-profile">
+
+      {!collapsed && (
+        <div className="role-account">
+          <ShieldCheck size={14} className="text-[#14B8A6]" />
+          <span>{roleLabels[role]} access</span>
+        </div>
+      )}
+
+      <div className="sidebar-profile" title={collapsed ? `${user.username} (${user.employeeId || "Staff"})` : undefined}>
         <div className="avatar avatar-small">{initials}</div>
-        <div className="profile-copy"><strong>{user.username}</strong><span>{user.employeeId || "Company account"}</span></div>
-        <button className="icon-button" aria-label="Sign out" onClick={onLogout}><LogOut size={15} /></button>
+        {!collapsed && (
+          <div className="profile-copy">
+            <strong>{user.username}</strong>
+            <span>{user.employeeId || "Mahathi Infra"}</span>
+          </div>
+        )}
+        {!collapsed && (
+          <button className="icon-button" aria-label="Sign out" onClick={onLogout} title="Sign out">
+            <LogOut size={15} />
+          </button>
+        )}
       </div>
-      <button className="logout-link" onClick={onLogout}><LogOut size={16} /> Sign out</button>
+
+      {!collapsed && (
+        <button className="logout-link" onClick={onLogout}>
+          <LogOut size={16} /> Sign out
+        </button>
+      )}
     </aside>
   );
 }
@@ -355,16 +510,18 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
           <Menu size={20} />
         </button>
         <div className="breadcrumb">
-          <span>Travora</span>
-          <ChevronRight size={14} />
-          <strong>{meta.title}</strong>
+          <span className="text-[#667085] dark:text-[#94A3B8]">Mahathi Infra</span>
+          <ChevronRight size={13} className="text-[#94A3B8]" />
+          <span className="text-[#667085] dark:text-[#94A3B8]">Travora</span>
+          <ChevronRight size={13} className="text-[#94A3B8]" />
+          <strong className="text-[#101828] dark:text-[#F8FAFC]">{meta.title}</strong>
         </div>
       </div>
       <div className="topbar-actions">
         <button
           type="button"
           onClick={onOpenSearch}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e2e8e5] dark:border-[#2b444a] text-xs text-[#839099] bg-[#fbfcfb] dark:bg-[#1a2c30] hover:border-[#398064] transition-all hover:shadow-sm"
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e2e8e5] dark:border-[#2b444a] text-xs text-[#839099] bg-[#fbfcfb] dark:bg-[#1a2c30] hover:border-[#14B8A6] transition-all hover:shadow-sm"
           title="Press Cmd+K to search"
         >
           <Search size={14} />
@@ -437,6 +594,24 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("travora_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("travora_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const path = location === "/" ? "/employee" : location;
   const meta = pageMeta[path] ?? pageMeta["/employee"];
   useEffect(() => setMobileOpen(false), [location]);
@@ -444,15 +619,44 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
     <div className="app-shell">
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} user={user} onLogout={onLogout} />
       <div className={`sidebar-overlay ${mobileOpen ? "visible" : ""}`} onClick={() => setMobileOpen(false)} />
-      <div className={`sidebar-drawer ${mobileOpen ? "open" : ""}`}><Sidebar role={role} path={path} user={user} onLogout={onLogout} onClose={() => setMobileOpen(false)} /></div>
-      <div className="desktop-sidebar"><Sidebar role={role} path={path} user={user} onLogout={onLogout} /></div>
-      <div className="app-main"><Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} /><main className="content-wrap">{children}</main></div>
+      <div className={`sidebar-drawer ${mobileOpen ? "open" : ""}`}>
+        <Sidebar role={role} path={path} user={user} onLogout={onLogout} onClose={() => setMobileOpen(false)} />
+      </div>
+      <div className={`desktop-sidebar ${collapsed ? "collapsed" : ""}`}>
+        <Sidebar
+          role={role}
+          path={path}
+          user={user}
+          onLogout={onLogout}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapse}
+        />
+      </div>
+      <div className={`app-main ${collapsed ? "sidebar-collapsed" : ""}`}>
+        <Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} />
+        <main className="content-wrap">{children}</main>
+      </div>
     </div>
   );
 }
 
-function StatCard({ label, value, detail, icon, accent }: { label: string; value: string; detail: string; icon: ReactNode; accent?: string }) {
-  return <div className={`stat-card ${accent ?? ""}`}><div className="stat-card-top"><span className="stat-icon">{icon}</span><span className="stat-detail">{detail}</span></div><strong className="stat-value">{value}</strong><span className="stat-label">{label}</span></div>;
+function StatCard({ label, value, detail, icon, accent, numericValue }: { label: string; value: string; detail: string; icon: ReactNode; accent?: string; numericValue?: number }) {
+  return (
+    <SpotlightCard className={`stat-card p-5 transition-all duration-300 ${accent ? "border-[#14B8A6]/40 shadow-[0_4px_20px_rgba(20,184,166,0.12)]" : ""}`}>
+      <div className="stat-card-top flex items-center justify-between">
+        <span className="stat-icon">{icon}</span>
+        <span className="stat-detail">{detail}</span>
+      </div>
+      {numericValue !== undefined ? (
+        <strong className="stat-value text-2xl sm:text-3xl font-extrabold tracking-tight">
+          <AnimatedCounter value={numericValue} />
+        </strong>
+      ) : (
+        <strong className="stat-value">{value}</strong>
+      )}
+      <span className="stat-label">{label}</span>
+    </SpotlightCard>
+  );
 }
 
 function EmptyState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
@@ -479,20 +683,229 @@ function Dashboard({ user }: { user: AuthUser }) {
     return () => { active = false; };
   }, [upcoming?.id]);
 
-  const stats = { total: journeys.length, upcoming: journeys.filter((journey) => journey.status === "Approved" || journey.status === "Booked").length, pending: journeys.filter((journey) => journey.status === "Pending approval").length, completed: journeys.filter((journey) => journey.status === "Completed").length };
-  return <div className="page-stack animate-page">
-    <PageTitle meta={pageMeta["/employee"]} />
-    <section className="welcome-grid">
-      <div className="welcome-card"><div className="welcome-copy"><span className="card-kicker">AUTHENTICATED EMPLOYEE WORKSPACE</span><h2>Good to see you, {user.username}.</h2><p>Here’s what’s happening with your travel today.</p><div className="welcome-actions"><Link href="/employee/plan-trip" className="button button-primary"><Plus size={17} /> Plan a trip</Link><Link href="/employee/journeys" className="button button-ghost">View journeys <ArrowUpRight size={16} /></Link></div></div><div className="welcome-orbit"><div className="orbit-ring orbit-ring-one" /><div className="orbit-ring orbit-ring-two" /><div className="orbit-core"><Plane size={27} /></div><span className="orbit-label orbit-label-one">Plan</span><span className="orbit-label orbit-label-two">Approve</span><span className="orbit-label orbit-label-three">Go</span></div></div>
-      <div className="upcoming-card"><div className="section-title-row"><div><span className="card-kicker">NEXT JOURNEY</span><h3>{upcoming?.destination || "No upcoming journeys"}</h3></div><span className="round-arrow"><ArrowUpRight size={17} /></span></div>{upcoming ? <><div className="route-line"><span>{upcoming.from}</span><span className="route-track"><span className="route-dot" /><span className="route-dash" /><Plane size={14} /></span><span>{upcoming.to}</span></div><div className="upcoming-meta"><div><CalendarDays size={15} /><span>{upcoming.dates}</span></div><div><BriefcaseBusiness size={15} /><span>{upcoming.project}</span></div></div><div className="upcoming-status"><StatusBadge status={upcoming.status} /><span>Current status from Travora</span></div>{upcoming.status === "Approved" || upcoming.status === "Booked" ? <div className="approver-box-approved"><ShieldCheck size={18} className="shrink-0" /><div><strong>Approver Decision: Approved</strong><p style={{ fontSize: 12, margin: "2px 0 0" }}>Approved by {upcoming.approverName || "Assigned Manager"}{upcoming.approvalDate ? ` on ${formatRequestDate(upcoming.approvalDate)}` : ""}. Authorized for ticketing.</p></div></div> : upcoming.status === "Pending approval" ? <div className="approver-box-pending"><Clock3 size={18} className="shrink-0" /><div><strong>Pending Approver Decision</strong><p style={{ fontSize: 12, margin: "2px 0 0" }}>Sent to Travel Desk for visibility. Manager sign-off is pending.</p></div></div> : null}{upcomingBooking && <div className="ticket-attachment-card"><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span className="card-kicker">CONFIRMED TICKET</span><span className="ticket-badge"><TicketCheck size={12} /> {upcomingBooking.bookingReference}</span></div><div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600 }}><span>{upcomingBooking.provider || "Carrier"} · {upcomingBooking.bookingType}</span>{upcomingBooking.cost !== undefined && <span>₹{Number(upcomingBooking.cost).toLocaleString("en-IN")}</span>}</div>{upcomingBooking.notes && <p style={{ fontSize: 12, margin: 0, opacity: 0.85 }}>{upcomingBooking.notes}</p>}{upcomingBooking.attachmentData && <div style={{ marginTop: 4 }}>{upcomingBooking.attachmentType?.includes("image") ? <img src={upcomingBooking.attachmentData} alt="Ticket copy" className="ticket-attachment-preview" /> : <div className="ticket-doc-card"><FileText size={22} className="text-red-500 shrink-0" /><div style={{ flex: 1, minWidth: 0 }}><strong style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{upcomingBooking.attachmentName || "e-ticket.pdf"}</strong><small style={{ fontSize: 11, opacity: 0.75 }}>PDF Ticket Document</small></div></div>}<a href={upcomingBooking.attachmentData} download={upcomingBooking.attachmentName || "ticket"} target="_blank" rel="noreferrer" className="button button-small button-primary" style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%" }}><Download size={13} /> View / Download {upcomingBooking.attachmentType?.includes("pdf") ? "PDF Ticket" : "Ticket Photo"}</a></div>}</div>}</> : <EmptyState icon={<Compass size={20} />} title={loading ? "Loading journeys" : "No journeys yet"} description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."} action={!loading && <Link className="button button-primary button-small" href="/employee/plan-trip">Plan a trip</Link>} />}</div>
-    </section>
-    <div className="section-title-row section-title-spaced"><div><span className="card-kicker">AT A GLANCE</span><h2 className="section-heading">Your travel pulse</h2></div><span className="data-note"><ShieldCheck size={13} /> Live backend data</span></div>
-    <section className="stats-grid"><StatCard label="Total trips" value={String(stats.total).padStart(2, "0")} detail="From your account" icon={<Compass size={18} />} /><StatCard label="Upcoming trips" value={String(stats.upcoming).padStart(2, "0")} detail="Approved or booked" icon={<CalendarDays size={18} />} accent="stat-accent" /><StatCard label="Pending requests" value={String(stats.pending).padStart(2, "0")} detail="Needs approval" icon={<Clock3 size={18} />} /><StatCard label="Completed trips" value={String(stats.completed).padStart(2, "0")} detail="From your account" icon={<Check size={18} />} /></section>
-    <section className="dashboard-lower-grid"><div className="panel recent-panel"><div className="section-title-row"><div><span className="card-kicker">RECENT ACTIVITY</span><h2 className="section-heading">My journeys</h2></div><Link href="/employee/journeys" className="text-link">View all <ArrowUpRight size={14} /></Link></div><div className="journey-list">{journeys.length ? journeys.slice(0, 3).map((journey) => <JourneyRow key={journey.id} journey={journey} />) : <EmptyState icon={<Compass size={20} />} title={loading ? "Loading journeys" : "No journeys yet"} description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."} />}</div></div><div className="panel status-panel"><div className="section-title-row"><div><span className="card-kicker">REQUEST FLOW</span><h2 className="section-heading">Where things stand</h2></div><Compass size={18} className="panel-icon" /></div><div className="flow-list"><FlowItem label="Pending approval" count={String(stats.pending).padStart(2, "0")} tone="pending" /><FlowItem label="Approved" count={String(journeys.filter((journey) => journey.status === "Approved").length).padStart(2, "0")} tone="approved" /><FlowItem label="Booked" count={String(journeys.filter((journey) => journey.status === "Booked").length).padStart(2, "0")} tone="booked" /><FlowItem label="Completed" count={String(stats.completed).padStart(2, "0")} tone="completed" /></div><Link href="/employee/reports" className="panel-footer-link">See travel reports <ArrowRightIcon /></Link></div></section>
-    <div className="mt-4">
-      <ActivityTimeline journeys={journeys} user={user} />
+  const stats = {
+    total: journeys.length,
+    upcoming: journeys.filter((journey) => journey.status === "Approved" || journey.status === "Booked").length,
+    pending: journeys.filter((journey) => journey.status === "Pending approval").length,
+    completed: journeys.filter((journey) => journey.status === "Completed").length,
+  };
+
+  if (loading && journeys.length === 0) {
+    return (
+      <div className="page-stack animate-page">
+        <PageTitle meta={pageMeta["/employee"]} />
+        <SkeletonMetrics />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-stack animate-page">
+      <PageTitle meta={pageMeta["/employee"]} />
+      <section className="welcome-grid">
+        <div className="welcome-card">
+          <div className="welcome-copy">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
+                Mahathi Infra Services Pvt. Ltd.
+              </span>
+              <span className="text-[11px] text-[#94A3B8]">· Corporate Travel Desk</span>
+            </div>
+            <h2>Good to see you, {user.username}.</h2>
+            <p>Here’s what’s happening with your corporate travel itinerary today.</p>
+            <div className="welcome-actions flex items-center gap-3 mt-4">
+              <Link href="/employee/plan-trip" className="button button-primary">
+                <Plus size={16} /> Plan a trip
+              </Link>
+              <Link href="/employee/journeys" className="button button-ghost">
+                View journeys <ArrowUpRight size={16} />
+              </Link>
+              <Link href="/employee/calendar" className="button button-ghost">
+                <CalendarDays size={16} /> Calendar
+              </Link>
+            </div>
+          </div>
+          <div className="welcome-orbit">
+            <div className="orbit-ring orbit-ring-one" />
+            <div className="orbit-ring orbit-ring-two" />
+            <div className="orbit-core"><Plane size={27} /></div>
+            <span className="orbit-label orbit-label-one">Plan</span>
+            <span className="orbit-label orbit-label-two">Approve</span>
+            <span className="orbit-label orbit-label-three">Go</span>
+          </div>
+        </div>
+
+        <div className="upcoming-card">
+          <div className="section-title-row">
+            <div>
+              <span className="card-kicker">NEXT JOURNEY</span>
+              <h3>{upcoming?.destination || "No upcoming journeys"}</h3>
+            </div>
+            <span className="round-arrow"><ArrowUpRight size={17} /></span>
+          </div>
+
+          {upcoming ? (
+            <>
+              <RouteVisualizer
+                from={upcoming.from}
+                to={upcoming.to}
+                dates={upcoming.dates}
+                project={upcoming.project}
+                status={upcoming.status}
+                className="mb-3"
+              />
+
+              <WorkflowTimeline
+                status={upcoming.status}
+                approverName={upcoming.approverName}
+                approvalDate={upcoming.approvalDate ? formatRequestDate(upcoming.approvalDate) : undefined}
+                bookingReference={upcomingBooking?.bookingReference}
+                className="mb-3"
+              />
+
+              {upcoming.status === "Approved" || upcoming.status === "Booked" ? (
+                <div className="approver-box-approved">
+                  <ShieldCheck size={18} className="shrink-0" />
+                  <div>
+                    <strong>Approver Decision: Approved</strong>
+                    <p style={{ fontSize: 12, margin: "2px 0 0" }}>
+                      Approved by {upcoming.approverName || "Assigned Manager"}
+                      {upcoming.approvalDate ? ` on ${formatRequestDate(upcoming.approvalDate)}` : ""}. Authorized for ticketing.
+                    </p>
+                  </div>
+                </div>
+              ) : upcoming.status === "Pending approval" ? (
+                <div className="approver-box-pending">
+                  <Clock3 size={18} className="shrink-0" />
+                  <div>
+                    <strong>Pending Approver Decision</strong>
+                    <p style={{ fontSize: 12, margin: "2px 0 0" }}>
+                      Sent to Travel Desk for visibility. Manager sign-off is pending.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {upcomingBooking && (
+                <div className="ticket-attachment-card">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span className="card-kicker">CONFIRMED TICKET</span>
+                    <span className="ticket-badge"><TicketCheck size={12} /> {upcomingBooking.bookingReference}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600 }}>
+                    <span>{upcomingBooking.provider || "Carrier"} · {upcomingBooking.bookingType}</span>
+                    {upcomingBooking.cost !== undefined && <span>₹{Number(upcomingBooking.cost).toLocaleString("en-IN")}</span>}
+                  </div>
+                  {upcomingBooking.notes && <p style={{ fontSize: 12, margin: 0, opacity: 0.85 }}>{upcomingBooking.notes}</p>}
+                  {upcomingBooking.attachmentData && (
+                    <div style={{ marginTop: 4 }}>
+                      {upcomingBooking.attachmentType?.includes("image") ? (
+                        <img src={upcomingBooking.attachmentData} alt="Ticket copy" className="ticket-attachment-preview" />
+                      ) : (
+                        <div className="ticket-doc-card">
+                          <FileText size={22} className="text-red-500 shrink-0" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {upcomingBooking.attachmentName || "e-ticket.pdf"}
+                            </strong>
+                            <small style={{ fontSize: 11, opacity: 0.75 }}>PDF Ticket Document</small>
+                          </div>
+                        </div>
+                      )}
+                      <a
+                        href={upcomingBooking.attachmentData}
+                        download={upcomingBooking.attachmentName || "ticket"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="button button-small button-primary"
+                        style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%" }}
+                      >
+                        <Download size={13} /> View / Download {upcomingBooking.attachmentType?.includes("pdf") ? "PDF Ticket" : "Ticket Photo"}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState
+              icon={<Compass size={20} />}
+              title={loading ? "Loading journeys" : "No journeys yet"}
+              description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."}
+              action={!loading && <Link className="button button-primary button-small" href="/employee/plan-trip">Plan a trip</Link>}
+            />
+          )}
+        </div>
+      </section>
+
+      <div className="section-title-row section-title-spaced">
+        <div>
+          <span className="card-kicker">AT A GLANCE</span>
+          <h2 className="section-heading">Your travel pulse</h2>
+        </div>
+        <span className="data-note"><ShieldCheck size={13} /> Live backend data</span>
+      </div>
+
+      <section className="stats-grid">
+        <StatCard label="Total trips" value={String(stats.total).padStart(2, "0")} numericValue={stats.total} detail="From your account" icon={<Compass size={18} />} />
+        <StatCard label="Upcoming trips" value={String(stats.upcoming).padStart(2, "0")} numericValue={stats.upcoming} detail="Approved or booked" icon={<CalendarDays size={18} />} accent="stat-accent" />
+        <StatCard label="Pending requests" value={String(stats.pending).padStart(2, "0")} numericValue={stats.pending} detail="Needs approval" icon={<Clock3 size={18} />} />
+        <StatCard label="Completed trips" value={String(stats.completed).padStart(2, "0")} numericValue={stats.completed} detail="From your account" icon={<Check size={18} />} />
+      </section>
+
+      <section className="dashboard-lower-grid">
+        <div className="panel recent-panel">
+          <div className="section-title-row">
+            <div>
+              <span className="card-kicker">RECENT ACTIVITY</span>
+              <h2 className="section-heading">My journeys</h2>
+            </div>
+            <Link href="/employee/journeys" className="text-link">
+              View all <ArrowUpRight size={14} />
+            </Link>
+          </div>
+          <div className="journey-list">
+            {journeys.length ? (
+              journeys.slice(0, 3).map((journey) => <JourneyRow key={journey.id} journey={journey} />)
+            ) : (
+              <EmptyState
+                icon={<Compass size={20} />}
+                title={loading ? "Loading journeys" : "No journeys yet"}
+                description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="panel status-panel">
+          <div className="section-title-row">
+            <div>
+              <span className="card-kicker">REQUEST FLOW</span>
+              <h2 className="section-heading">Where things stand</h2>
+            </div>
+            <Compass size={18} className="panel-icon" />
+          </div>
+          <div className="flow-list">
+            <FlowItem label="Pending approval" count={String(stats.pending).padStart(2, "0")} tone="pending" />
+            <FlowItem label="Approved" count={String(journeys.filter((journey) => journey.status === "Approved").length).padStart(2, "0")} tone="approved" />
+            <FlowItem label="Booked" count={String(journeys.filter((journey) => journey.status === "Booked").length).padStart(2, "0")} tone="booked" />
+            <FlowItem label="Completed" count={String(stats.completed).padStart(2, "0")} tone="completed" />
+          </div>
+          <Link href="/employee/reports" className="panel-footer-link">
+            See travel reports <ArrowRightIcon />
+          </Link>
+        </div>
+      </section>
+
+      <div className="mt-4">
+        <ActivityTimeline journeys={journeys} user={user} />
+      </div>
     </div>
-  </div>;
+  );
 }
 function ArrowRightIcon() { return <ChevronRight size={15} />; }
 
@@ -5612,6 +6025,12 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
+  const handleQuickFill = (u: string, p: string) => {
+    setUsername(u);
+    setPassword(p);
+    setError("");
+  };
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -5624,9 +6043,9 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
       setError(
         loginError instanceof Error
           ? loginError.message.includes("401")
-            ? "Invalid username or password."
+            ? "Invalid username or password. Please verify your corporate credentials."
             : loginError.message
-          : "Unable to sign in."
+          : "Unable to sign in. Please verify your connection."
       );
     } finally {
       setLoading(false);
@@ -5639,50 +6058,141 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
         className="login-theme-toggle icon-button"
         aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
         onClick={toggleTheme}
+        title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
       >
         {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
       </button>
+
       <div className="login-brand">
         <Logo />
-        <span>Employee Travel Booking & Management System</span>
+        <span className="text-xs font-semibold text-[#667085] dark:text-[#94A3B8]">
+          Mahathi Infra Services Pvt. Ltd. · Enterprise Travel Desk
+        </span>
       </div>
+
       <div className="login-layout">
         <div className="login-story">
-          <span className="card-kicker">THE WORK TRIP, RECONSIDERED</span>
-          <h1>
-            Travel well.<br />
-            <em>Work better.</em>
-          </h1>
-          <p>One calm workspace for every business journey — from the first request to the flight home.</p>
-          <div className="login-trust-tags">
-            <span className="login-trust-tag"><ShieldCheck size={13} style={{ color: "var(--green)" }} /> Isolated Workspaces</span>
-            <span className="login-trust-tag"><Sparkles size={13} style={{ color: "var(--saffron)" }} /> Role-Based Access</span>
-            <span className="login-trust-tag"><Clock3 size={13} style={{ color: "var(--blue)" }} /> Live Desk Queue</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] border border-[#14B8A6]/25 mb-4">
+            <ShieldCheck size={14} /> Corporate Mobility Platform
           </div>
-          <div className="login-story-footer">
-            <div className="story-line" />
-            <span>Authorized enterprise company access</span>
+
+          <h1>
+            Travel with ease.<br />
+            <em className="text-[#14B8A6]">Execute with precision.</em>
+          </h1>
+
+          <p className="text-[#475467] dark:text-[#94A3B8] leading-relaxed mt-4 max-w-md">
+            The unified corporate travel platform for Mahathi Infra Services Pvt. Ltd. Coordinate project itineraries, manager sign-offs, and flight desk ticketing with complete enterprise governance.
+          </p>
+
+          {/* Interactive Route Preview Card */}
+          <div className="mt-6 p-4 rounded-2xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md shadow-sm max-w-md">
+            <div className="flex items-center justify-between text-xs text-[#667085] dark:text-[#94A3B8] mb-2 font-medium">
+              <span>Next Authorized Journey</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF]">
+                Live Itinerary
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-1">
+              <strong className="text-sm font-bold text-[#101828] dark:text-white">HYD</strong>
+              <div className="flex-1 flex items-center justify-center relative px-2">
+                <div className="w-full border-b border-dashed border-[#14B8A6]" />
+                <Plane size={14} className="absolute text-[#14B8A6] rotate-90" />
+              </div>
+              <strong className="text-sm font-bold text-[#101828] dark:text-white">DEL</strong>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-[#667085] dark:text-[#94A3B8] mt-2 pt-2 border-t border-[#F2F4F7] dark:border-[#1F2937]">
+              <span>Trip Type: Business</span>
+              <span>Manager Status: Approved</span>
+            </div>
+          </div>
+
+          <div className="login-trust-tags flex flex-wrap gap-2.5 mt-6">
+            <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
+              <ShieldCheck size={13} className="text-[#16A34A]" /> Role-Based Access
+            </span>
+            <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
+              <RotateCcw size={13} className="text-[#14B8A6]" /> Multi-Device Cloud Sync
+            </span>
+            <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
+              <Lock size={13} className="text-[#2563EB]" /> Audit & Policy Trail
+            </span>
+          </div>
+
+          <div className="login-story-footer mt-8 flex items-center gap-3 text-xs text-[#667085] dark:text-[#94A3B8]">
+            <div className="story-line w-8 h-[2px] bg-[#14B8A6]" />
+            <span>Mahathi Infra Services Pvt. Ltd. Authorized Staff & Contractors</span>
           </div>
         </div>
+
         <div className="login-card">
-          <span className="card-kicker">ENTERPRISE PORTAL</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="card-kicker text-[#14B8A6]">ENTERPRISE PORTAL</span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F2F4F7] dark:bg-[#1E293B] text-[#475467] dark:text-[#94A3B8]">
+              v2.4 LTS
+            </span>
+          </div>
           <h2>Sign in to Travora</h2>
-          <p>Please enter your authorized username and password to continue.</p>
-          <form onSubmit={submit}>
-            <label className="field">
-              <span>Username / Login ID</span>
-              <input
-                type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                required
-                autoComplete="username"
-                placeholder="Enter your employee number or ID (e.g. AGR0001, 123456, 654321)"
-              />
+          <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-1 mb-4">
+            Enter your employee credentials to access your dedicated workspace.
+          </p>
+
+          {/* Quick Credential Switchers for Seamless Testing */}
+          <div className="mb-4 p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E4E7EC] dark:border-[#1E293B]">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-[#667085] dark:text-[#94A3B8] mb-1.5">
+              Quick Role Select (Development / Demo):
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleQuickFill("AGR0001", "password")}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E293B] border border-[#E4E7EC] dark:border-[#334155] hover:border-[#14B8A6] text-[#344054] dark:text-[#E2E8F0] transition-colors"
+                title="Fill Employee Credentials"
+              >
+                Employee (AGR0001)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill("MISPL0001", "password")}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E293B] border border-[#E4E7EC] dark:border-[#334155] hover:border-[#14B8A6] text-[#344054] dark:text-[#E2E8F0] transition-colors"
+                title="Fill Approver Credentials"
+              >
+                Approver (MISPL0001)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill("admin", "password")}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E293B] border border-[#E4E7EC] dark:border-[#334155] hover:border-[#14B8A6] text-[#344054] dark:text-[#E2E8F0] transition-colors"
+                title="Fill Admin Credentials"
+              >
+                Admin (admin)
+              </button>
+            </div>
+          </div>
+
+          <form onSubmit={submit} className="space-y-4">
+            <label className="field block">
+              <span className="block text-xs font-semibold text-[#344054] dark:text-[#E2E8F0] mb-1">
+                Username / Login ID
+              </span>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  required
+                  autoComplete="username"
+                  placeholder="e.g. AGR0001, MISPL0001, admin"
+                  className="w-full"
+                />
+              </div>
             </label>
-            <label className="field">
-              <span>Password</span>
-              <div className="password-field">
+
+            <label className="field block">
+              <span className="block text-xs font-semibold text-[#344054] dark:text-[#E2E8F0] mb-1">
+                Password
+              </span>
+              <div className="password-field relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -5690,10 +6200,11 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
                   required
                   autoComplete="current-password"
                   placeholder="Enter your password"
+                  className="w-full pr-10"
                 />
                 <button
                   type="button"
-                  className="password-toggle"
+                  className="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-[#667085] hover:text-[#101828] dark:hover:text-white"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((visible) => !visible)}
                 >
@@ -5701,34 +6212,56 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
                 </button>
               </div>
             </label>
-            {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
-            <div className="login-options">
-              <span className="login-security">
-                <ShieldCheck size={14} /> Role-based access control
+
+            {error && (
+              <div className="form-error-message p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+                <XCircle size={15} className="shrink-0 text-red-500" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="login-options flex items-center justify-between text-xs pt-1">
+              <span className="login-security flex items-center gap-1.5 text-[#667085] dark:text-[#94A3B8]">
+                <ShieldCheck size={14} className="text-[#14B8A6]" /> Role-based access control
               </span>
               <button
                 type="button"
-                className="inline-link"
-                onClick={() => toast("Contact your system administrator or use your assigned role login.")}
+                className="inline-link text-[#14B8A6] hover:underline font-semibold"
+                onClick={() => toast("Contact your system administrator or IT helpdesk for password resets.")}
               >
                 Need help?
               </button>
             </div>
-            <button type="submit" className="button button-primary button-wide" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-              <ArrowUpRight size={16} />
+
+            <button
+              type="submit"
+              className="button button-primary button-wide w-full flex items-center justify-center gap-2 py-3"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RotateCcw size={16} className="animate-spin" />
+                  <span>Signing in…</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign in to Workspace</span>
+                  <ArrowUpRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="login-note mt-3">
-            <ShieldCheck size={15} />
-            <span>Enterprise single-sign-on & authenticated workspaces active. Enter your assigned credentials.</span>
+          <div className="login-note mt-4 pt-3 border-t border-[#E4E7EC] dark:border-[#1E293B] flex items-center gap-2 text-[11px] text-[#667085] dark:text-[#94A3B8]">
+            <ShieldCheck size={14} className="text-[#14B8A6] shrink-0" />
+            <span>Mahathi Infra Services Pvt. Ltd. single sign-on & TLS 1.3 encryption active.</span>
           </div>
         </div>
       </div>
-      <div className="login-bottom">
-        <span>Travora · Secure business travel management</span>
-        <span>Need help? Contact your travel desk</span>
+
+      <div className="login-bottom flex items-center justify-between text-xs text-[#667085] dark:text-[#94A3B8] pt-6 border-t border-[#E4E7EC] dark:border-[#1E293B]">
+        <span>Travora Enterprise · Mahathi Infra Services Pvt. Ltd.</span>
+        <span>Corporate Travel Desk Support: desk@mahathiinfra.com</span>
       </div>
     </div>
   );
