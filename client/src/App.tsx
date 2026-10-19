@@ -16,6 +16,7 @@ import {
   FileCheck2,
   FileText,
   Filter,
+  Globe2,
   Headphones,
   LayoutDashboard,
   Lock,
@@ -182,6 +183,9 @@ function useTravelRequests(user?: AuthUser | null, refreshKey = 0) {
       .catch((requestError) => {
         if (active) setError(requestError instanceof Error ? requestError.message : "Travel data is unavailable.");
       })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     const handleSync = () => {
       travelRequestsApi.list().then((data) => {
         if (!active) return;
@@ -687,8 +691,13 @@ function Dashboard({ user }: { user: AuthUser }) {
     total: journeys.length,
     upcoming: journeys.filter((journey) => journey.status === "Approved" || journey.status === "Booked").length,
     pending: journeys.filter((journey) => journey.status === "Pending approval").length,
+    approved: journeys.filter((journey) => journey.status === "Approved").length,
+    booked: journeys.filter((journey) => journey.status === "Booked").length,
     completed: journeys.filter((journey) => journey.status === "Completed").length,
   };
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   if (loading && journeys.length === 0) {
     return (
@@ -704,20 +713,25 @@ function Dashboard({ user }: { user: AuthUser }) {
   }
 
   return (
-    <div className="page-stack animate-page">
+    <div className="page-stack animate-page space-y-6">
       <PageTitle meta={pageMeta["/employee"]} />
+
+      {/* 1. Welcome Hero Section with Personalized Identity */}
       <section className="welcome-grid">
         <div className="welcome-card">
           <div className="welcome-copy">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
                 Mahathi Infra Services Pvt. Ltd.
               </span>
-              <span className="text-[11px] text-[#94A3B8]">· Corporate Travel Desk</span>
+              <span className="text-[11px] text-[#94A3B8]">· Corporate Travel Workspace</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/10 text-white border border-white/10">
+                ID: {user.employeeId || "MISPL0001"}
+              </span>
             </div>
-            <h2>Good to see you, {user.username}.</h2>
-            <p>Here’s what’s happening with your corporate travel itinerary today.</p>
-            <div className="welcome-actions flex items-center gap-3 mt-4">
+            <h2>{greeting}, {user.username}.</h2>
+            <p>Welcome to your central corporate mobility hub. Coordinate itineraries, track manager sign-offs, and access confirmed e-tickets.</p>
+            <div className="welcome-actions flex flex-wrap items-center gap-3 mt-4">
               <Link href="/employee/plan-trip" className="button button-primary">
                 <Plus size={16} /> Plan a trip
               </Link>
@@ -726,6 +740,9 @@ function Dashboard({ user }: { user: AuthUser }) {
               </Link>
               <Link href="/employee/calendar" className="button button-ghost">
                 <CalendarDays size={16} /> Calendar
+              </Link>
+              <Link href="/employee/expenses" className="button button-ghost">
+                <WalletCards size={16} /> Expenses
               </Link>
             </div>
           </div>
@@ -739,6 +756,7 @@ function Dashboard({ user }: { user: AuthUser }) {
           </div>
         </div>
 
+        {/* Next Scheduled Journey or Call-to-Action Card */}
         <div className="upcoming-card">
           <div className="section-title-row">
             <div>
@@ -834,29 +852,163 @@ function Dashboard({ user }: { user: AuthUser }) {
           ) : (
             <EmptyState
               icon={<Compass size={20} />}
-              title={loading ? "Loading journeys" : "No journeys yet"}
-              description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."}
-              action={!loading && <Link className="button button-primary button-small" href="/employee/plan-trip">Plan a trip</Link>}
+              title="Ready for your next trip?"
+              description="You have no pending or upcoming journeys scheduled. Plan your next business trip in just a few clicks."
+              action={<Link className="button button-primary button-small" href="/employee/plan-trip">Plan a trip</Link>}
             />
           )}
         </div>
       </section>
 
+      {/* 2. Live Executive Pulse Stats */}
       <div className="section-title-row section-title-spaced">
         <div>
           <span className="card-kicker">AT A GLANCE</span>
           <h2 className="section-heading">Your travel pulse</h2>
         </div>
-        <span className="data-note"><ShieldCheck size={13} /> Live backend data</span>
+        <span className="data-note"><ShieldCheck size={13} /> Real-time backend data</span>
       </div>
 
       <section className="stats-grid">
-        <StatCard label="Total trips" value={String(stats.total).padStart(2, "0")} numericValue={stats.total} detail="From your account" icon={<Compass size={18} />} />
-        <StatCard label="Upcoming trips" value={String(stats.upcoming).padStart(2, "0")} numericValue={stats.upcoming} detail="Approved or booked" icon={<CalendarDays size={18} />} accent="stat-accent" />
-        <StatCard label="Pending requests" value={String(stats.pending).padStart(2, "0")} numericValue={stats.pending} detail="Needs approval" icon={<Clock3 size={18} />} />
-        <StatCard label="Completed trips" value={String(stats.completed).padStart(2, "0")} numericValue={stats.completed} detail="From your account" icon={<Check size={18} />} />
+        <StatCard label="Total journeys" value={String(stats.total).padStart(2, "0")} numericValue={stats.total} detail="All-time requests" icon={<Compass size={18} />} />
+        <StatCard label="Waiting for approval" value={String(stats.pending).padStart(2, "0")} numericValue={stats.pending} detail="Awaiting action" icon={<Clock3 size={18} />} />
+        <StatCard label="Approved journeys" value={String(stats.approved).padStart(2, "0")} numericValue={stats.approved} detail="Ready for desk" icon={<ShieldCheck size={18} />} accent="stat-accent" />
+        <StatCard label="Confirmed bookings" value={String(stats.booked).padStart(2, "0")} numericValue={stats.booked} detail="Issued e-tickets" icon={<TicketCheck size={18} />} />
       </section>
 
+      {/* 3. Quick Actions Workstation Hub */}
+      <section className="space-y-3">
+        <div className="section-title-row">
+          <div>
+            <span className="card-kicker">QUICK WORKSTATION</span>
+            <h2 className="section-heading">Employee Actions Hub</h2>
+          </div>
+          <span className="text-xs text-[#667085] dark:text-[#94A3B8]">Frequently used corporate travel tools</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <Link
+            href="/employee/plan-trip"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Plus size={20} />
+              </span>
+              <div>
+                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                  Plan a New Trip
+                </strong>
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
+                  Submit flight, rail, or hotel request
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/employee/journeys"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Compass size={20} />
+              </span>
+              <div>
+                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                  My Journeys
+                </strong>
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
+                  Track approval & ticket status
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/employee/calendar"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <CalendarDays size={20} />
+              </span>
+              <div>
+                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                  Travel Calendar
+                </strong>
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
+                  Interactive schedule of departures
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/employee/expenses"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <WalletCards size={20} />
+              </span>
+              <div>
+                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                  Expense Claims
+                </strong>
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
+                  File receipts & claim per-diem
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/employee/reports"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <BarChart3 size={20} />
+              </span>
+              <div>
+                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                  Travel Signals & Reports
+                </strong>
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
+                  View personal travel frequency
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/employee/support"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <CircleHelp size={20} />
+              </span>
+              <div>
+                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                  Travel Desk Support
+                </strong>
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
+                  FAQs & contact helpdesk
+                </span>
+              </div>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* 4. Interactive Flight Corridors Map */}
+      <section className="space-y-3">
+        <InteractiveRouteMap />
+      </section>
+
+      {/* 5. Lower Grid: Recent Journeys + Request Flow Breakdown */}
       <section className="dashboard-lower-grid">
         <div className="panel recent-panel">
           <div className="section-title-row">
@@ -870,12 +1022,13 @@ function Dashboard({ user }: { user: AuthUser }) {
           </div>
           <div className="journey-list">
             {journeys.length ? (
-              journeys.slice(0, 3).map((journey) => <JourneyRow key={journey.id} journey={journey} />)
+              journeys.slice(0, 4).map((journey) => <JourneyRow key={journey.id} journey={journey} />)
             ) : (
               <EmptyState
                 icon={<Compass size={20} />}
-                title={loading ? "Loading journeys" : "No journeys yet"}
-                description={loading ? "Fetching your travel activity." : "Your submitted travel requests will appear here."}
+                title="No journeys submitted yet"
+                description="Your submitted travel requests will appear here once created."
+                action={<Link className="button button-primary button-small" href="/employee/plan-trip">Plan your first trip</Link>}
               />
             )}
           </div>
@@ -891,16 +1044,17 @@ function Dashboard({ user }: { user: AuthUser }) {
           </div>
           <div className="flow-list">
             <FlowItem label="Pending approval" count={String(stats.pending).padStart(2, "0")} tone="pending" />
-            <FlowItem label="Approved" count={String(journeys.filter((journey) => journey.status === "Approved").length).padStart(2, "0")} tone="approved" />
-            <FlowItem label="Booked" count={String(journeys.filter((journey) => journey.status === "Booked").length).padStart(2, "0")} tone="booked" />
-            <FlowItem label="Completed" count={String(stats.completed).padStart(2, "0")} tone="completed" />
+            <FlowItem label="Approved by Manager" count={String(stats.approved).padStart(2, "0")} tone="approved" />
+            <FlowItem label="Confirmed Booked" count={String(stats.booked).padStart(2, "0")} tone="booked" />
+            <FlowItem label="Completed Trips" count={String(stats.completed).padStart(2, "0")} tone="completed" />
           </div>
           <Link href="/employee/reports" className="panel-footer-link">
-            See travel reports <ArrowRightIcon />
+            See detailed reports <ArrowRightIcon />
           </Link>
         </div>
       </section>
 
+      {/* 6. Activity Timeline Audit Stream */}
       <div className="mt-4">
         <ActivityTimeline journeys={journeys} user={user} />
       </div>
