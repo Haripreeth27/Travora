@@ -6179,12 +6179,6 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleQuickFill = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    setError("");
-  };
-
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -6239,29 +6233,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
             The unified corporate travel platform for Mahathi Infra Services Pvt. Ltd. Coordinate project itineraries, manager sign-offs, and flight desk ticketing with complete enterprise governance.
           </p>
 
-          {/* Interactive Route Preview Card */}
-          <div className="mt-6 p-4 rounded-2xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md shadow-sm max-w-md">
-            <div className="flex items-center justify-between text-xs text-[#667085] dark:text-[#94A3B8] mb-2 font-medium">
-              <span>Next Authorized Journey</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF]">
-                Live Itinerary
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3 py-1">
-              <strong className="text-sm font-bold text-[#101828] dark:text-white">HYD</strong>
-              <div className="flex-1 flex items-center justify-center relative px-2">
-                <div className="w-full border-b border-dashed border-[#14B8A6]" />
-                <Plane size={14} className="absolute text-[#14B8A6] rotate-90" />
-              </div>
-              <strong className="text-sm font-bold text-[#101828] dark:text-white">DEL</strong>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#667085] dark:text-[#94A3B8] mt-2 pt-2 border-t border-[#F2F4F7] dark:border-[#1F2937]">
-              <span>Trip Type: Business</span>
-              <span>Manager Status: Approved</span>
-            </div>
-          </div>
-
-          <div className="login-trust-tags flex flex-wrap gap-2.5 mt-6">
+          <div className="login-trust-tags flex flex-wrap gap-2.5 mt-8">
             <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
               <ShieldCheck size={13} className="text-[#16A34A]" /> Role-Based Access
             </span>
@@ -6287,42 +6259,9 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
             </span>
           </div>
           <h2>Sign in to Travora</h2>
-          <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-1 mb-4">
+          <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-1 mb-6">
             Enter your employee credentials to access your dedicated workspace.
           </p>
-
-          {/* Quick Credential Switchers for Seamless Testing */}
-          <div className="mb-4 p-2.5 rounded-xl bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E4E7EC] dark:border-[#1E293B]">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-[#667085] dark:text-[#94A3B8] mb-1.5">
-              Quick Role Select (Development / Demo):
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleQuickFill("AGR0001", "password")}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E293B] border border-[#E4E7EC] dark:border-[#334155] hover:border-[#14B8A6] text-[#344054] dark:text-[#E2E8F0] transition-colors"
-                title="Fill Employee Credentials"
-              >
-                Employee (AGR0001)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill("MISPL0001", "password")}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E293B] border border-[#E4E7EC] dark:border-[#334155] hover:border-[#14B8A6] text-[#344054] dark:text-[#E2E8F0] transition-colors"
-                title="Fill Approver Credentials"
-              >
-                Approver (MISPL0001)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill("admin", "password")}
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-[#1E293B] border border-[#E4E7EC] dark:border-[#334155] hover:border-[#14B8A6] text-[#344054] dark:text-[#E2E8F0] transition-colors"
-                title="Fill Admin Credentials"
-              >
-                Admin (admin)
-              </button>
-            </div>
-          </div>
 
           <form onSubmit={submit} className="space-y-4">
             <label className="field block">
