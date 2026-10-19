@@ -466,26 +466,27 @@ function Sidebar({
         </div>
       )}
 
-      <div className="sidebar-profile" title={collapsed ? `${user.username} (${user.employeeId || "Staff"})` : undefined}>
+      <div
+        className={`sidebar-profile ${collapsed ? "flex-col items-center gap-2" : ""}`}
+        title={collapsed ? `${user.username} (${user.employeeId || "Staff"}) · Sign out` : undefined}
+      >
         <div className="avatar avatar-small">{initials}</div>
-        {!collapsed && (
-          <div className="profile-copy">
-            <strong>{user.username}</strong>
-            <span>{user.employeeId || "Mahathi Infra"}</span>
-          </div>
-        )}
-        {!collapsed && (
-          <button className="icon-button" aria-label="Sign out" onClick={onLogout} title="Sign out">
+        {!collapsed ? (
+          <>
+            <div className="profile-copy">
+              <strong>{user.username}</strong>
+              <span>{user.employeeId || "Mahathi Infra"}</span>
+            </div>
+            <button className="icon-button" aria-label="Sign out" onClick={onLogout} title="Sign out">
+              <LogOut size={15} />
+            </button>
+          </>
+        ) : (
+          <button className="icon-button text-[#94A3B8] hover:text-white" aria-label="Sign out" onClick={onLogout} title="Sign out">
             <LogOut size={15} />
           </button>
         )}
       </div>
-
-      {!collapsed && (
-        <button className="logout-link" onClick={onLogout}>
-          <LogOut size={16} /> Sign out
-        </button>
-      )}
     </aside>
   );
 }
@@ -525,12 +526,12 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         <button
           type="button"
           onClick={onOpenSearch}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#e2e8e5] dark:border-[#2b444a] text-xs text-[#839099] bg-[#fbfcfb] dark:bg-[#1a2c30] hover:border-[#14B8A6] transition-all hover:shadow-sm"
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] text-xs text-[#667085] dark:text-[#94A3B8] bg-[#F8FAFC] dark:bg-[#111827] hover:border-[#14B8A6] transition-all hover:shadow-sm"
           title="Press Cmd+K to search"
         >
           <Search size={14} />
           <span>Search or Cmd+K</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[#e2e8e5] dark:bg-[#203638] text-[10px] font-mono">⌘K</kbd>
+          <kbd className="px-1.5 py-0.5 rounded bg-[#E4E7EC] dark:bg-[#1E293B] text-[10px] font-mono text-[#475467] dark:text-[#CBD5E1]">⌘K</kbd>
         </button>
         <button
           type="button"

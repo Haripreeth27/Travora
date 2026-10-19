@@ -74,20 +74,20 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
   const getIcon = (type: ActivityEvent["type"]) => {
     switch (type) {
       case "booking":
-        return <TicketCheck size={16} className="text-[#398064]" />;
+        return <TicketCheck size={16} className="text-[#14B8A6]" />;
       case "approval":
-        return <CheckCircle2 size={16} className="text-[#547b91]" />;
+        return <CheckCircle2 size={16} className="text-[#16A34A]" />;
       case "expense":
-        return <WalletCards size={16} className="text-[#e7a947]" />;
+        return <WalletCards size={16} className="text-[#2563EB]" />;
       case "request":
-        return <FileText size={16} className="text-[#e7a947]" />;
+        return <FileText size={16} className="text-[#14B8A6]" />;
       default:
-        return <Clock size={16} className="text-[#839099]" />;
+        return <Clock size={16} className="text-[#94A3B8]" />;
     }
   };
 
   return (
-    <div className="panel p-6 rounded-2xl bg-white dark:bg-[#1a2c30] border border-[#e2e8e5] dark:border-[#2b444a] shadow-sm space-y-4">
+    <div className="panel p-6 rounded-2xl bg-white dark:bg-[#111827] border border-[#E4E7EC] dark:border-[#1E293B] shadow-sm space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <span className="card-kicker">AUDIT & EVENT STREAM</span>
@@ -96,11 +96,11 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
 
         {events.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs">
-            <Filter size={13} className="text-[#839099]" />
+            <Filter size={13} className="text-[#94A3B8]" />
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="text-xs bg-transparent border border-[#e2e8e5] dark:border-[#2b444a] rounded-lg px-2 py-1 text-[#52616a] dark:text-[#9bb0ac]"
+              className="text-xs bg-transparent border border-[#E4E7EC] dark:border-[#1E293B] rounded-lg px-2 py-1 text-[#475467] dark:text-[#CBD5E1]"
             >
               <option value="ALL">All activities</option>
               <option value="booking">Bookings</option>
@@ -113,44 +113,44 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
       </div>
 
       {events.length === 0 ? (
-        <div className="p-6 text-center rounded-xl bg-[#f8faf9] dark:bg-[#132225] border border-dashed border-[#d8e2dc] dark:border-[#273d42] space-y-2">
-          <div className="w-10 h-10 mx-auto rounded-full bg-[#eef4f1] dark:bg-[#1d3336] flex items-center justify-center text-[#398064]">
+        <div className="p-6 text-center rounded-xl bg-[#F8FAFC] dark:bg-[#0F172A] border border-dashed border-[#E4E7EC] dark:border-[#1E293B] space-y-2">
+          <div className="w-10 h-10 mx-auto rounded-full bg-[#14B8A6]/10 flex items-center justify-center text-[#0D9488] dark:text-[#2DD4BF]">
             <Sparkles size={18} />
           </div>
-          <strong className="block text-sm text-[#182329] dark:text-[#edf5f1]">
+          <strong className="block text-sm text-[#101828] dark:text-[#F8FAFC]">
             No travel activity yet
           </strong>
-          <p className="text-xs text-[#839099] max-w-sm mx-auto">
+          <p className="text-xs text-[#667085] dark:text-[#94A3B8] max-w-sm mx-auto">
             Your submitted travel requests, manager approvals, and ticket bookings will appear here in chronological order.
           </p>
         </div>
       ) : (
-        <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#e2e8e5] dark:before:bg-[#284247]">
+        <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E4E7EC] dark:before:bg-[#1E293B]">
           {filtered.map((item) => (
             <div key={item.id} className="relative group">
-              <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-[#1a2c30] border-2 border-[#e2e8e5] dark:border-[#2b444a] flex items-center justify-center group-hover:border-[#398064] transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#398064]" />
+              <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-[#111827] border-2 border-[#E4E7EC] dark:border-[#1E293B] flex items-center justify-center group-hover:border-[#14B8A6] transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]" />
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     {getIcon(item.type)}
-                    <strong className="text-[#182329] dark:text-[#edf5f1] font-semibold">
+                    <strong className="text-[#101828] dark:text-[#F8FAFC] font-semibold">
                       {item.actor}
                     </strong>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#f1f6f3] dark:bg-[#203638] text-[#52616a] dark:text-[#9bb0ac]">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#475467] dark:text-[#CBD5E1]">
                       {item.role}
                     </span>
                   </div>
-                  <span className="text-[11px] text-[#839099] flex items-center gap-1">
+                  <span className="text-[11px] text-[#94A3B8] flex items-center gap-1">
                     <Clock size={11} /> {item.timestamp}
                   </span>
                 </div>
 
-                <p className="text-xs text-[#52616a] dark:text-[#9bb0ac]">
+                <p className="text-xs text-[#475467] dark:text-[#94A3B8]">
                   {item.action}:{" "}
-                  <span className="font-medium text-[#182329] dark:text-[#edf5f1]">{item.target}</span>
+                  <span className="font-medium text-[#101828] dark:text-[#F8FAFC]">{item.target}</span>
                 </p>
               </div>
             </div>

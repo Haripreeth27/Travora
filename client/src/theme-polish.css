@@ -144,11 +144,11 @@ code, kbd, .monospace {
 
 /* Selection & Smooth Scroll */
 ::selection {
-  background: rgba(245, 158, 11, 0.28);
+  background: rgba(20, 184, 166, 0.25);
   color: var(--ink);
 }
 .dark ::selection {
-  background: rgba(251, 191, 36, 0.35);
+  background: rgba(45, 212, 191, 0.3);
   color: #ffffff;
 }
 
@@ -500,8 +500,8 @@ code, kbd, .monospace {
 /* Operations Hero */
 .ops-hero, .admin-hero {
   border-radius: var(--radius-xl) !important;
-  background: radial-gradient(circle at 90% 20%, rgba(245, 158, 11, 0.2), transparent 45%),
-              linear-gradient(135deg, #0e1c22 0%, #17313b 50%, #122830 100%) !important;
+  background: radial-gradient(circle at 90% 20%, rgba(20, 184, 166, 0.2), transparent 45%),
+              linear-gradient(135deg, #101828 0%, #0F172A 50%, #134E4A 100%) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: var(--shadow-lg) !important;
   padding: 34px 40px !important;
@@ -516,7 +516,7 @@ code, kbd, .monospace {
   font-family: var(--font-heading) !important;
   font-weight: 800 !important;
   color: var(--saffron) !important;
-  filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.3));
+  filter: drop-shadow(0 2px 8px rgba(20, 184, 166, 0.3));
 }
 
 /* --------------------------------------------------------------------------
@@ -759,6 +759,61 @@ code, kbd, .monospace {
   margin-bottom: 5px;
 }
 
+.input-with-icon {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+.input-with-icon svg {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: var(--ink-muted) !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+.input-with-icon input {
+  padding-left: 42px !important;
+}
+
+.empty-state {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 280px !important;
+  padding: 36px 24px !important;
+  text-align: center !important;
+}
+.empty-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 52px !important;
+  height: 52px !important;
+  color: var(--saffron) !important;
+  background: var(--saffron-soft) !important;
+  border: 1px solid rgba(20, 184, 166, 0.25) !important;
+  border-radius: 16px !important;
+  margin-bottom: 14px !important;
+  box-shadow: 0 4px 14px rgba(20, 184, 166, 0.12) !important;
+}
+.empty-state h3 {
+  font-family: var(--font-heading) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+  margin: 0 !important;
+}
+.empty-state p {
+  max-width: 360px !important;
+  margin: 8px 0 0 !important;
+  color: var(--ink-soft) !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
 /* Modals */
 .modal-overlay {
   background: var(--overlay-soft) !important;
@@ -783,17 +838,17 @@ code, kbd, .monospace {
 .login-page {
   position: relative !important;
   overflow-x: hidden !important;
-  background: radial-gradient(ellipse 70% 50% at 15% 20%, rgba(245, 158, 11, 0.08), transparent 70%),
-              radial-gradient(ellipse 60% 50% at 85% 75%, rgba(16, 185, 129, 0.09), transparent 70%),
-              radial-gradient(ellipse 50% 40% at 50% 40%, rgba(59, 130, 246, 0.05), transparent 70%),
+  background: radial-gradient(ellipse 70% 50% at 15% 20%, rgba(20, 184, 166, 0.08), transparent 70%),
+              radial-gradient(ellipse 60% 50% at 85% 75%, rgba(13, 148, 136, 0.09), transparent 70%),
+              radial-gradient(ellipse 50% 40% at 50% 40%, rgba(37, 99, 235, 0.04), transparent 70%),
               var(--paper) !important;
   min-height: 100vh;
 }
 .dark .login-page {
-  background: radial-gradient(ellipse 70% 50% at 15% 20%, rgba(251, 191, 36, 0.1), transparent 70%),
-              radial-gradient(ellipse 60% 50% at 85% 75%, rgba(52, 211, 153, 0.12), transparent 70%),
-              radial-gradient(ellipse 50% 40% at 50% 40%, rgba(96, 165, 250, 0.07), transparent 70%),
-              #080e12 !important;
+  background: radial-gradient(ellipse 70% 50% at 15% 20%, rgba(20, 184, 166, 0.12), transparent 70%),
+              radial-gradient(ellipse 60% 50% at 85% 75%, rgba(13, 148, 136, 0.1), transparent 70%),
+              radial-gradient(ellipse 50% 40% at 50% 40%, rgba(37, 99, 235, 0.05), transparent 70%),
+              #0B0F17 !important;
 }
 
 .login-story h1 {
@@ -807,12 +862,12 @@ code, kbd, .monospace {
 .login-story h1 em {
   font-family: var(--font-serif) !important;
   font-style: italic !important;
-  background: linear-gradient(135deg, #10b981 0%, #f59e0b 100%);
+  background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .dark .login-story h1 em {
-  background: linear-gradient(135deg, #34d399 0%, #fbbf24 100%);
+  background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -988,25 +1043,25 @@ code, kbd, .monospace {
   gap: 16px !important;
   padding: 18px 22px !important;
   border-radius: 16px !important;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%) !important;
-  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(37, 99, 235, 0.06) 100%) !important;
+  border: 1px solid rgba(20, 184, 166, 0.25) !important;
   margin: 18px 0 !important;
 }
 .dark .employee-profile-card {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12) 0%, rgba(251, 191, 36, 0.1) 100%) !important;
-  border-color: rgba(52, 211, 153, 0.3) !important;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%) !important;
+  border-color: rgba(45, 212, 191, 0.3) !important;
 }
 
 .employee-avatar-large {
   width: 56px !important;
   height: 56px !important;
   border-radius: 16px !important;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%) !important;
   color: #ffffff !important;
   font-family: var(--font-heading) !important;
   font-size: 22px !important;
   font-weight: 800 !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(20, 184, 166, 0.35) !important;
 }
 
 .reason-box {
@@ -1020,8 +1075,8 @@ code, kbd, .monospace {
 .desk-booking-callout {
   padding: 18px !important;
   border-radius: 14px !important;
-  background: rgba(245, 158, 11, 0.07) !important;
-  border: 1px solid rgba(245, 158, 11, 0.28) !important;
+  background: rgba(20, 184, 166, 0.07) !important;
+  border: 1px solid rgba(20, 184, 166, 0.28) !important;
   margin-top: 18px !important;
 }
 
@@ -1047,14 +1102,14 @@ code, kbd, .monospace {
   gap: 18px !important;
   padding: 16px 22px !important;
   border-radius: 16px !important;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.09) 0%, rgba(245, 158, 11, 0.09) 100%) !important;
-  border: 1px solid rgba(239, 68, 68, 0.28) !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%) !important;
+  border: 1px solid rgba(239, 68, 68, 0.22) !important;
   margin-bottom: 22px !important;
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.06) !important;
 }
 .dark .urgent-triage-card {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(245, 158, 11, 0.14) 100%) !important;
-  border-color: rgba(239, 68, 68, 0.4) !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(185, 28, 28, 0.08) 100%) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
 }
 
 .urgent-badge-pill {
@@ -1115,7 +1170,7 @@ code, kbd, .monospace {
 .carrier-fill {
   height: 100% !important;
   border-radius: 99px !important;
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%) !important;
+  background: linear-gradient(90deg, #14B8A6 0%, #0D9488 100%) !important;
   transition: width 0.4s ease !important;
 }
 .carrier-fill-indigo {
@@ -1153,16 +1208,16 @@ code, kbd, .monospace {
   transition: all 0.18s ease !important;
 }
 .carrier-quick-chip:hover {
-  background: #10b981 !important;
+  background: #14B8A6 !important;
   color: #ffffff !important;
-  border-color: #10b981 !important;
+  border-color: #14B8A6 !important;
   transform: translateY(-1px) !important;
 }
 .carrier-quick-chip.selected {
-  background: #10b981 !important;
+  background: #14B8A6 !important;
   color: #ffffff !important;
-  border-color: #10b981 !important;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35) !important;
+  border-color: #14B8A6 !important;
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.35) !important;
 }
 
 /* Workstation Search & Filter Tabs */
@@ -1197,9 +1252,9 @@ code, kbd, .monospace {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 .dark .workstation-tab.active {
-  background: #10b981 !important;
+  background: #14B8A6 !important;
   color: #ffffff !important;
-  border-color: #10b981 !important;
+  border-color: #14B8A6 !important;
 }
 .workstation-tab-count {
   display: inline-block !important;

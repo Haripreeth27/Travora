@@ -106,27 +106,27 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
       </div>
 
       {/* Hero Profile Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#1f353d] to-[#29444c] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md border border-white/10">
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#101828] via-[#0F172A] to-[#134E4A] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md border border-white/10">
         <div className="flex items-center gap-5">
-          <div className="w-18 h-18 rounded-2xl bg-[#e7a947] text-[#1f353d] flex items-center justify-center text-2xl font-black shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#14B8A6] to-[#0D9488] text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-teal-500/20">
             {(user.username || "TV").slice(0, 2).toUpperCase()}
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold tracking-tight text-white">{profile.name}</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#e7a947]/20 text-[#e7a947] border border-[#e7a947]/40">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
                 {profile.role}
               </span>
             </div>
-            <p className="text-sm text-[#98afaa]">
+            <p className="text-sm text-[#94A3B8]">
               {profile.designation} · {profile.department}
             </p>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-[#dbe7e4] pt-1">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-[#E2E8F0] pt-1">
               <span className="flex items-center gap-1.5">
-                <Building2 size={13} className="text-[#e7a947]" /> {profile.officeLocation}
+                <Building2 size={13} className="text-[#14B8A6]" /> {profile.officeLocation}
               </span>
               <span className="flex items-center gap-1.5">
-                <Mail size={13} className="text-[#e7a947]" /> {profile.email}
+                <Mail size={13} className="text-[#14B8A6]" /> {profile.email}
               </span>
             </div>
           </div>
@@ -191,7 +191,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
                 <span className="card-kicker">PERSONALIZED FLIGHT SETTINGS</span>
                 <h2 className="section-heading">Travel Preferences</h2>
               </div>
-              <Plane size={18} className="panel-icon text-[#398064]" />
+              <Plane size={18} className="panel-icon text-[#14B8A6]" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -251,11 +251,11 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
 
             <div className="flex items-center justify-between pt-2">
               {savedSuccess ? (
-                <span className="text-xs text-[#398064] flex items-center gap-1.5 font-semibold">
+                <span className="text-xs text-[#16A34A] flex items-center gap-1.5 font-semibold">
                   <CheckCircle2 size={15} /> Changes saved to your profile
                 </span>
               ) : (
-                <span className="text-xs text-[#839099]">
+                <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
                   Travel desk will automatically apply these preferences during booking.
                 </span>
               )}
@@ -272,7 +272,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
                 <span className="card-kicker">SAFETY & DUTY OF CARE</span>
                 <h2 className="section-heading">Emergency Contact</h2>
               </div>
-              <HeartHandshake size={18} className="panel-icon text-[#b15b53]" />
+              <HeartHandshake size={18} className="panel-icon text-red-500" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -295,14 +295,14 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
         {/* Sidebar Info & Corporate Policy */}
         <aside className="space-y-6">
           <div className="aside-card aside-dark p-6 space-y-4">
-            <div className="flex items-center gap-2 text-[#e7a947]">
+            <div className="flex items-center gap-2 text-[#14B8A6]">
               <ShieldCheck size={20} />
               <h3 className="font-bold text-white text-base">Duty of Care Active</h3>
             </div>
-            <p className="text-xs text-[#dbe7e4] leading-relaxed">
+            <p className="text-xs text-[#E2E8F0] leading-relaxed">
               Travora automatically registers all confirmed bookings with our 24/7 Corporate Medical & Travel Assistance helpline (International SOS).
             </p>
-            <div className="pt-2 border-t border-white/10 text-[11px] text-[#98afaa]">
+            <div className="pt-2 border-t border-white/10 text-[11px] text-[#94A3B8]">
               24/7 Hotline: +1 (800) 528-7474
             </div>
           </div>
@@ -310,17 +310,17 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
           <div className="panel p-6 space-y-3">
             <span className="card-kicker">TRAVEL DOCUMENT STATUS</span>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between py-1.5 border-b border-[#e2e8e5] dark:border-[#2b444a]">
-                <span className="text-[#839099]">Passport Validity:</span>
-                <strong className="text-[#398064]">Valid (Exp: Nov 2031)</strong>
+              <div className="flex items-center justify-between py-1.5 border-b border-[#E4E7EC] dark:border-[#1E293B]">
+                <span className="text-[#667085] dark:text-[#94A3B8]">Passport Validity:</span>
+                <strong className="text-[#16A34A]">Valid (Exp: Nov 2031)</strong>
               </div>
-              <div className="flex items-center justify-between py-1.5 border-b border-[#e2e8e5] dark:border-[#2b444a]">
-                <span className="text-[#839099]">US B1/B2 Visa:</span>
-                <strong className="text-[#398064]">Active (Exp: 2029)</strong>
+              <div className="flex items-center justify-between py-1.5 border-b border-[#E4E7EC] dark:border-[#1E293B]">
+                <span className="text-[#667085] dark:text-[#94A3B8]">US B1/B2 Visa:</span>
+                <strong className="text-[#16A34A]">Active (Exp: 2029)</strong>
               </div>
-              <div className="flex items-center justify-between py-1.5 border-b border-[#e2e8e5] dark:border-[#2b444a]">
-                <span className="text-[#839099]">Schengen Visa:</span>
-                <strong className="text-[#e7a947]">Eligible for auto-sponsor</strong>
+              <div className="flex items-center justify-between py-1.5 border-b border-[#E4E7EC] dark:border-[#1E293B]">
+                <span className="text-[#667085] dark:text-[#94A3B8]">Schengen Visa:</span>
+                <strong className="text-[#14B8A6]">Eligible for auto-sponsor</strong>
               </div>
             </div>
           </div>

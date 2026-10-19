@@ -260,14 +260,14 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
       </section>
 
       {/* Policy compliance alert */}
-      <div className="p-4 rounded-xl bg-[#398064]/10 border border-[#398064]/20 flex items-center justify-between text-xs text-[#398064] dark:text-[#6ee7b7]">
+      <div className="p-4 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/25 flex items-center justify-between text-xs text-[#0D9488] dark:text-[#2DD4BF]">
         <div className="flex items-center gap-2.5">
           <Sparkles size={16} className="shrink-0" />
           <span>
             <strong>Policy Auto-Check:</strong> 100% of your expenses are within standard per-diem limits for FY 2026.
           </span>
         </div>
-        <span className="font-semibold underline cursor-pointer">View Travel Policy</span>
+        <span className="font-semibold underline cursor-pointer hover:text-[#14B8A6]">View Travel Policy</span>
       </div>
 
       {/* Filter and Search toolbar */}
@@ -335,7 +335,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                     <tr key={item.id}>
                       <td>
                         <div className="table-journey">
-                          <span className="w-8 h-8 rounded-lg bg-[#f1f6f3] dark:bg-[#203638] flex items-center justify-center text-[#398064]">
+                          <span className="w-8 h-8 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] flex items-center justify-center text-[#14B8A6]">
                             <Icon size={16} />
                           </span>
                           <span>
@@ -403,22 +403,22 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
           onClick={() => setIsCreateOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white dark:bg-[#1a2c30] rounded-2xl shadow-xl border border-[#e2e8e5] dark:border-[#2b444a] p-6 space-y-5"
+            className="w-full max-w-lg bg-white dark:bg-[#111827] rounded-2xl shadow-xl border border-[#E4E7EC] dark:border-[#1E293B] p-6 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[#e2e8e5] dark:border-[#2b444a] pb-3">
+            <div className="flex items-center justify-between border-b border-[#E4E7EC] dark:border-[#1E293B] pb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#e7a947]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#14B8A6]">
                   TRAVEL REIMBURSEMENT
                 </span>
-                <h2 className="text-xl font-bold text-[#182329] dark:text-[#edf5f1]">
+                <h2 className="text-xl font-bold text-[#101828] dark:text-[#F8FAFC]">
                   Log Business Expense
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-[#839099] hover:text-[#182329] dark:hover:text-white"
+                className="text-[#667085] hover:text-[#101828] dark:hover:text-white"
               >
                 <X size={18} />
               </button>
@@ -490,12 +490,12 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                 <span className="block text-xs font-semibold text-[#52616a] dark:text-[#9bb0ac] mb-1.5">
                   Receipt Attachment
                 </span>
-                <label className="border-2 border-dashed border-[#e2e8e5] dark:border-[#2b444a] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-[#f7faf8] dark:hover:bg-[#16272a] transition-colors">
-                  <Upload size={20} className="text-[#839099] mb-1" />
-                  <span className="text-xs text-[#182329] dark:text-[#edf5f1] font-medium">
+                <label className="border-2 border-dashed border-[#E4E7EC] dark:border-[#1E293B] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-[#F8FAFC] dark:hover:bg-[#1E293B] transition-colors">
+                  <Upload size={20} className="text-[#94A3B8] mb-1" />
+                  <span className="text-xs text-[#101828] dark:text-[#F8FAFC] font-medium">
                     {receiptFile || "Click to upload bill / receipt PDF or image"}
                   </span>
-                  <span className="text-[10px] text-[#839099]">Max size: 10MB</span>
+                  <span className="text-[10px] text-[#94A3B8]">Max size: 10MB</span>
                   <input
                     type="file"
                     className="hidden"

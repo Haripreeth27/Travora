@@ -113,6 +113,8 @@ html, body, #root { max-width: 100%; overflow-x: hidden; }
   .notification-mark-read { font-size: 9px; }
 }
 
-@media (min-width: 821px) {
-  .responsive-table { overflow-x: visible; }
+.responsive-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
