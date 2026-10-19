@@ -47,16 +47,16 @@ button { border: 0; }
 .workspace-copy span, .profile-copy span, .topbar-user-copy span { color: #94A3B8; font-size: 10px; font-weight: 500; }
 .workspace-copy strong, .profile-copy strong, .topbar-user-copy strong { color: #FFFFFF; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .muted-icon { color: #64748B; }
-.nav-label, .card-kicker, .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 700; }
-.nav-label { padding: 8px 10px 6px; color: #64748B; font-size: 10px; }
-.primary-nav { display: grid; gap: 3px; }
-.nav-item { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 12px; color: #94A3B8; border-radius: 10px; font-size: 13px; font-weight: 600; transition: all .18s var(--ease); }
+.nav-label, .card-kicker, .eyebrow { text-transform: uppercase; letter-spacing: .1em; font-size: 9.5px; font-weight: 700; }
+.nav-label { padding: 6px 8px 3px; color: #64748B; font-size: 9px; }
+.primary-nav { display: grid; gap: 2px; }
+.nav-item { position: relative; display: flex; align-items: center; gap: 9px; padding: 7px 10px; color: #94A3B8; border-radius: 8px; font-size: 12.5px; font-weight: 600; transition: all .18s var(--ease); }
 .nav-item:hover { color: #FFFFFF; background: rgba(255,255,255,.06); transform: translateX(2px); }
 .nav-item.active { color: #FFFFFF; background: rgba(20, 184, 166, 0.14); border: 1px solid rgba(20, 184, 166, 0.35); box-shadow: 0 2px 10px rgba(20, 184, 166, 0.15); }
 .nav-item.active svg:first-child { color: #14B8A6; }
 .nav-chevron { margin-left: auto; color: #64748B; }
-.sidebar-spacer { flex: 1; min-height: 24px; }
-.sidebar-profile { display: flex; align-items: center; gap: 10px; padding: 12px 10px; border-top: 1px solid rgba(255,255,255,.08); }
+.sidebar-spacer { flex: 1; min-height: 8px; }
+.sidebar-profile { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid rgba(255,255,255,.08); }
 .sidebar-profile .icon-button { color: #94A3B8; }
 .sidebar-profile .icon-button:hover { color: #FFFFFF; background: rgba(255,255,255,.08); }
 .logout-link { display: flex; align-items: center; gap: 10px; color: #94A3B8; font-size: 12px; font-weight: 600; padding: 8px 10px; border-radius: 8px; transition: color .18s ease, background .18s ease; width: 100%; }

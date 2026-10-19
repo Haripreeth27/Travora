@@ -184,10 +184,15 @@ code, kbd, .monospace {
   border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12) !important;
   backdrop-filter: blur(16px);
+  padding: 16px 12px 14px !important;
+}
+
+.sidebar-top {
+  padding: 0 4px 12px !important;
 }
 
 .brand-lockup {
-  gap: 10px !important;
+  gap: 9px !important;
 }
 
 .brand-mark {
@@ -195,14 +200,21 @@ code, kbd, .monospace {
   color: #FFFFFF !important;
   box-shadow: 0 4px 14px rgba(20, 184, 166, 0.35) !important;
   border-radius: 9px !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.brand-name {
+  font-size: 20px !important;
 }
 
 .workspace-switcher {
   background: rgba(255, 255, 255, 0.04) !important;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   backdrop-filter: blur(10px);
-  border-radius: 12px !important;
-  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  padding: 7px 10px !important;
+  margin-bottom: 10px !important;
   transition: all 0.2s ease;
 }
 .workspace-switcher:hover {
@@ -215,26 +227,51 @@ code, kbd, .monospace {
   color: #FFFFFF !important;
   font-weight: 800 !important;
   box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+  width: 26px !important;
+  height: 26px !important;
+  font-size: 10px !important;
+}
+
+.workspace-copy strong {
+  font-size: 11.5px !important;
+}
+.workspace-copy span {
+  font-size: 9.5px !important;
+}
+
+.sidebar-nav-container {
+  overflow-y: auto !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+.sidebar-nav-container::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
 }
 
 .nav-label {
   color: #6d8883 !important;
-  font-size: 10px !important;
+  font-size: 9.5px !important;
   font-weight: 800 !important;
-  letter-spacing: 0.12em !important;
+  letter-spacing: 0.1em !important;
+}
+
+.primary-nav {
+  gap: 2px !important;
 }
 
 .nav-item {
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   font-weight: 600 !important;
-  font-size: 13px !important;
-  color: #8fa6a1 !important;
-  transition: all 0.22s var(--ease-spring) !important;
+  font-size: 12.5px !important;
+  color: #94A3B8 !important;
+  padding: 7px 10px !important;
+  gap: 9px !important;
+  transition: all 0.2s var(--ease-spring) !important;
 }
 .nav-item:hover {
   color: #ffffff !important;
   background: rgba(255, 255, 255, 0.07) !important;
-  transform: translateX(3px) !important;
+  transform: translateX(2px) !important;
 }
 .nav-item.active {
   color: #ffffff !important;
@@ -247,25 +284,30 @@ code, kbd, .monospace {
   filter: drop-shadow(0 0 6px rgba(20, 184, 166, 0.4));
 }
 
+.sidebar-spacer {
+  min-height: 8px !important;
+  flex: 1 !important;
+}
+
 .sidebar-profile {
   background: rgba(255, 255, 255, 0.03) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 12px !important;
-  margin-top: 8px;
-  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  margin-top: 4px !important;
+  padding: 8px 10px !important;
 }
 
 .role-account {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
+  padding: 5px 10px !important;
   border-radius: 8px;
-  background: rgba(52, 211, 153, 0.12);
-  color: #34d399;
-  font-size: 11px;
+  background: rgba(20, 184, 166, 0.1) !important;
+  color: #2DD4BF !important;
+  font-size: 10.5px !important;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 6px !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1584,12 +1626,12 @@ code, kbd, .monospace {
 
 .nav-category-header {
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 10px;
+  letter-spacing: 0.1em;
+  font-size: 9px;
   font-weight: 700;
   color: #64748B;
-  padding: 12px 10px 4px;
-  margin-top: 4px;
+  padding: 6px 8px 3px;
+  margin-top: 2px;
 }
 .sidebar.collapsed .nav-category-header {
   display: none !important;

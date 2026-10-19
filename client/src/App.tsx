@@ -249,24 +249,19 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "WORKSPACE",
       items: [
-        { label: "Overview", href: "/employee", icon: <LayoutDashboard size={17} /> },
-        { label: "Plan a trip", href: "/employee/plan-trip", icon: <Plus size={17} /> },
-        { label: "My journeys", href: "/employee/journeys", icon: <Compass size={17} /> },
-        { label: "Calendar", href: "/employee/calendar", icon: <CalendarDays size={17} /> },
+        { label: "Overview", href: "/employee", icon: <LayoutDashboard size={16} /> },
+        { label: "Plan a trip", href: "/employee/plan-trip", icon: <Plus size={16} /> },
+        { label: "My journeys", href: "/employee/journeys", icon: <Compass size={16} /> },
+        { label: "Calendar", href: "/employee/calendar", icon: <CalendarDays size={16} /> },
       ],
     },
     {
-      category: "FINANCE & PROFILE",
+      category: "FINANCE & INSIGHTS",
       items: [
-        { label: "Expenses", href: "/employee/expenses", icon: <WalletCards size={17} /> },
-        { label: "Profile", href: "/employee/profile", icon: <UserRound size={17} /> },
-      ],
-    },
-    {
-      category: "INSIGHTS & SUPPORT",
-      items: [
-        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
-        { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
+        { label: "Expenses", href: "/employee/expenses", icon: <WalletCards size={16} /> },
+        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
+        { label: "Profile", href: "/employee/profile", icon: <UserRound size={16} /> },
+        { label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> },
       ],
     },
   ],
@@ -274,17 +269,17 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "MANAGEMENT",
       items: [
-        { label: "Approval queue", href: "/approver", icon: <LayoutDashboard size={17} /> },
-        { label: "Desk bookings", href: "/approver/bookings", icon: <TicketCheck size={17} /> },
-        { label: "Bulk & Group Bookings", href: "/approver/bulk-bookings", icon: <UsersRound size={17} /> },
-        { label: "Approval history", href: "/approver/history", icon: <FileCheck2 size={17} /> },
+        { label: "Approval queue", href: "/approver", icon: <LayoutDashboard size={16} /> },
+        { label: "Desk bookings", href: "/approver/bookings", icon: <TicketCheck size={16} /> },
+        { label: "Bulk & Group Bookings", href: "/approver/bulk-bookings", icon: <UsersRound size={16} /> },
+        { label: "Approval history", href: "/approver/history", icon: <FileCheck2 size={16} /> },
       ],
     },
     {
       category: "INSIGHTS & SUPPORT",
       items: [
-        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
-        { label: "Support", href: "/employee/support", icon: <CircleHelp size={17} /> },
+        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
+        { label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> },
       ],
     },
   ],
@@ -292,44 +287,34 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "OPERATIONS",
       items: [
-        { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={17} /> },
-        { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={17} /> },
-        { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={17} /> },
-        { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={17} /> },
+        { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={16} /> },
+        { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={16} /> },
+        { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={16} /> },
+        { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={16} /> },
       ],
     },
     {
       category: "INSIGHTS",
       items: [
-        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={17} /> },
+        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
       ],
     },
   ],
   ADMIN: [
     {
-      category: "WORKSPACE",
+      category: "WORKSPACE & CONTROLS",
       items: [
-        { label: "Control center", href: "/admin", icon: <LayoutDashboard size={17} /> },
+        { label: "Control center", href: "/admin", icon: <LayoutDashboard size={16} /> },
+        { label: "Travel requests", href: "/admin/requests", icon: <FileText size={16} /> },
+        { label: "Bookings", href: "/admin/bookings", icon: <TicketCheck size={16} /> },
+        { label: "Employees", href: "/admin/employees", icon: <UsersRound size={16} /> },
       ],
     },
     {
-      category: "MANAGEMENT",
+      category: "INSIGHTS & SYSTEM",
       items: [
-        { label: "Employees", href: "/admin/employees", icon: <UsersRound size={17} /> },
-        { label: "Travel requests", href: "/admin/requests", icon: <FileText size={17} /> },
-        { label: "Bookings", href: "/admin/bookings", icon: <TicketCheck size={17} /> },
-      ],
-    },
-    {
-      category: "INSIGHTS",
-      items: [
-        { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={17} /> },
-      ],
-    },
-    {
-      category: "SYSTEM",
-      items: [
-        { label: "Settings", href: "/admin/settings", icon: <Settings2 size={17} /> },
+        { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={16} /> },
+        { label: "Settings", href: "/admin/settings", icon: <Settings2 size={16} /> },
       ],
     },
   ],
@@ -431,7 +416,7 @@ function Sidebar({
         {!collapsed && <ChevronDown size={14} className="muted-icon shrink-0" />}
       </div>
 
-      <div className="overflow-y-auto flex-1 pr-0.5 space-y-4 custom-scrollbar">
+      <div className="sidebar-nav-container flex-1 space-y-2">
         {categories.map((cat, idx) => (
           <div key={idx} className="space-y-1">
             {!collapsed && <div className="nav-category-header">{cat.category}</div>}
