@@ -69,6 +69,7 @@ import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
 import { Profile } from "./pages/Profile";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
+import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { exportToCsv } from "./utils/exportCsv";
 import { SpotlightCard } from "./components/SpotlightCard";
@@ -237,6 +238,8 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/admin/requests": { eyebrow: "Administration", title: "Travel requests", description: "All request activity, across every stage of the lifecycle." },
   "/admin/bookings": { eyebrow: "Administration", title: "Bookings", description: "Visibility into ticketing activity and travel spend." },
   "/admin/reports": { eyebrow: "Administration", title: "Organization reports", description: "Travel patterns to support better planning and policy." },
+  "/approver/reports": { eyebrow: "Approver workspace", title: "Management Reports", description: "Supervised employee travel records, approval logs, and team booking costs." },
+  "/travel-desk/reports": { eyebrow: "Travel desk", title: "Operations Reports", description: "Ticketing status, vendor provider costs, and booking manifest extraction." },
 };
 
 type NavCategory = {
@@ -278,7 +281,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS & SUPPORT",
       items: [
-        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
+        { label: "Reports", href: "/approver/reports", icon: <BarChart3 size={16} /> },
         { label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> },
       ],
     },
@@ -296,7 +299,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS",
       items: [
-        { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
+        { label: "Reports", href: "/travel-desk/reports", icon: <BarChart3 size={16} /> },
       ],
     },
   ],
@@ -5855,10 +5858,173 @@ function CancellationDialog({ booking, onClose, onSubmit }: { booking: any; onCl
 
 function Reports() {
   const user = getStoredUser<AuthUser>();
-  const { journeys, loading } = useTravelRequests(user);
-  const counts = { approved: journeys.filter((j) => j.status === "Approved").length, pending: journeys.filter((j) => j.status === "Pending approval").length, completed: journeys.filter((j) => j.status === "Completed").length };
-  const destinations = Array.from(new Set(journeys.map((j) => j.destination))).slice(0, 4);
-  return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/employee/reports"]} /><div className="report-header"><div><span className="card-kicker">LIVE TRAVEL DATA</span><h2>Patterns that help you plan ahead.</h2><p>These signals are calculated from the travel requests returned for your authenticated account.</p></div><div className="report-period"><CalendarDays size={16} /> Current account</div></div><section className="stats-grid"><StatCard label="Total requests" value={String(journeys.length).padStart(2, "0")} detail={loading ? "Loading" : "From backend"} icon={<FileText size={18} />} /><StatCard label="Approved" value={String(counts.approved).padStart(2, "0")} detail="Current status" icon={<Check size={18} />} accent="stat-accent" /><StatCard label="Pending" value={String(counts.pending).padStart(2, "0")} detail="Needs approval" icon={<Clock3 size={18} />} /><StatCard label="Completed" value={String(counts.completed).padStart(2, "0")} detail="Current status" icon={<Compass size={18} />} /></section><InteractiveRouteMap /><section className="report-grid"><div className="panel destination-panel"><div className="section-title-row"><div><span className="card-kicker">DESTINATIONS</span><h2 className="section-heading">Where work takes you</h2></div><Compass size={18} className="panel-icon" /></div>{destinations.length ? <div className="destination-list">{destinations.map((destination, index) => <Destination key={destination} name={destination} count={`${journeys.filter((j) => j.destination === destination).length} request${journeys.filter((j) => j.destination === destination).length === 1 ? "" : "s"}`} width={`${86 - index * 17}%`} />)}</div> : <EmptyState icon={<Compass size={20} />} title="No destination data yet" description="Submit a travel request to build your report." />}</div><div className="panel insight-card"><div className="insight-symbol"><Sparkles size={18} /></div><div><span className="card-kicker">TRAVORA SIGNAL</span><h3>{loading ? "Loading your travel signal" : journeys.length ? "Keep the request context close." : "Your first request starts the signal."}</h3><p>{loading ? "Fetching the latest request activity." : journeys.length ? "Approval and booking teams can use the same request record to keep the handoff clear." : "Create a request to see destinations, statuses and travel patterns here."}</p></div></div></section></div>;
+  const [requests, setRequests] = useState<Array<Record<string, any>>>([]);
+  const [bookings, setBookings] = useState<Array<Record<string, any>>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchReports = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [reqData, bkData] = await Promise.all([
+        travelRequestsApi.list(),
+        bookingsApi.list(),
+      ]);
+      setRequests(Array.isArray(reqData) ? (reqData as Array<Record<string, any>>) : []);
+      setBookings(Array.isArray(bkData) ? (bkData as Array<Record<string, any>>) : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Report records are unavailable.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+    const handleSync = () => fetchReports();
+    window.addEventListener("travora_cloud_synced", handleSync);
+    return () => window.removeEventListener("travora_cloud_synced", handleSync);
+  }, []);
+
+  const counts = {
+    approved: requests.filter((r) => String(r.status).toUpperCase() === "APPROVED").length,
+    pending: requests.filter((r) => String(r.status).toUpperCase() === "PENDING").length,
+    completed: requests.filter((r) => ["COMPLETED", "BOOKED"].includes(String(r.status).toUpperCase())).length,
+  };
+
+  const destinations = Array.from(
+    new Set(requests.map((r) => r.toLocation).filter(Boolean))
+  ).slice(0, 5);
+
+  const isApprover = user?.role === "APPROVER";
+  const isTravelDesk = user?.role === "TRAVEL_DESK";
+  const roleLabel = isApprover
+    ? "Approval Team Travel Extraction"
+    : isTravelDesk
+    ? "Operations Ticketing & Vendor Extraction"
+    : "Personal Employee Travel Extraction";
+
+  const headerTitle = isApprover
+    ? "Management & Team Travel Intelligence"
+    : isTravelDesk
+    ? "Travel Desk Bookings & Vendor Report"
+    : "Patterns that help you plan ahead.";
+
+  const headerDesc = isApprover
+    ? "Supervised employee travel records, approval logs, and departmental booking spend."
+    : isTravelDesk
+    ? "Confirmed flight, hotel, and transit bookings, carrier vendor costs, and passenger manifests."
+    : "These signals are calculated from the travel requests and bookings returned for your authenticated account.";
+
+  return (
+    <div className="page-stack animate-page">
+      <PageTitle
+        meta={{
+          eyebrow: isApprover
+            ? "Approver workspace"
+            : isTravelDesk
+            ? "Travel desk"
+            : "Employee workspace",
+          title: "Reports & Financial Extraction",
+          description: headerDesc,
+        }}
+      />
+
+      <div className="report-header">
+        <div>
+          <span className="card-kicker">
+            {isApprover
+              ? "TEAM INTELLIGENCE"
+              : isTravelDesk
+              ? "OPERATIONS INTELLIGENCE"
+              : "LIVE TRAVEL DATA"}
+          </span>
+          <h2>{headerTitle}</h2>
+          <p>{headerDesc}</p>
+        </div>
+        <div className="report-period">
+          <CalendarDays size={16} />{" "}
+          {isApprover
+            ? "Supervised Team"
+            : isTravelDesk
+            ? "All Operations"
+            : "Current account"}
+        </div>
+      </div>
+
+      {/* Financial Extraction Suite (PDF, Excel, Cost Breakdown, Manifest) */}
+      <ReportExtractionSuite
+        requests={requests}
+        bookings={bookings}
+        currentUser={user}
+        roleTitle={roleLabel}
+      />
+
+      {/* Corridor Map */}
+      <InteractiveRouteMap />
+
+      {/* Destination Grid & Insights */}
+      <section className="report-grid">
+        <div className="panel destination-panel">
+          <div className="section-title-row">
+            <div>
+              <span className="card-kicker">DESTINATIONS</span>
+              <h2 className="section-heading">Where work takes you</h2>
+            </div>
+            <Compass size={18} className="panel-icon" />
+          </div>
+          {destinations.length ? (
+            <div className="destination-list">
+              {destinations.map((destination, index) => (
+                <Destination
+                  key={destination}
+                  name={destination}
+                  count={`${
+                    requests.filter((r) => r.toLocation === destination).length
+                  } request${
+                    requests.filter((r) => r.toLocation === destination).length === 1
+                      ? ""
+                      : "s"
+                  }`}
+                  width={`${88 - index * 14}%`}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<Compass size={20} />}
+              title="No destination data yet"
+              description="Submit or approve a travel request to build your destination matrix."
+            />
+          )}
+        </div>
+
+        <div className="panel insight-card">
+          <div className="insight-symbol">
+            <Sparkles size={18} />
+          </div>
+          <div>
+            <span className="card-kicker">TRAVORA SIGNAL</span>
+            <h3>
+              {loading
+                ? "Loading travel intelligence"
+                : requests.length
+                ? "Keep the request context close."
+                : "Your first request starts the signal."}
+            </h3>
+            <p>
+              {loading
+                ? "Fetching the latest request activity."
+                : requests.length
+                ? "Approval and booking teams use the same request record to keep handoffs clear and eliminate vendor invoice discrepancies."
+                : "Create a request to see destinations, statuses and travel patterns here."}
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 function Destination({ name, count, width }: { name: string; count: string; width: string }) { return <div className="destination-item"><div><strong>{name}</strong><span>{count}</span></div><div className="destination-track"><span style={{ width }} /></div></div>; }
 
@@ -6119,6 +6285,7 @@ function AdminBookings() {
 function reportCount<T>(items: T[], predicate: (item: T) => boolean) { return items.filter(predicate).length; }
 function reportBarRows(values: Record<string, number>, limit = 6) { return Object.entries(values).sort(([, a], [, b]) => b - a).slice(0, limit); }
 function AdminReports() {
+  const user = getStoredUser<AuthUser>();
   const [requests, setRequests] = useState<Array<Record<string, any>>>([]); const [bookings, setBookings] = useState<Array<Record<string, any>>>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [query, setQuery] = useState("");
   useEffect(() => { let active = true; setLoading(true); setError(""); Promise.all([travelRequestsApi.list(), bookingsApi.list()]).then(([requestData, bookingData]) => { if (!active) return; setRequests(Array.isArray(requestData) ? requestData as Array<Record<string, any>> : []); setBookings(Array.isArray(bookingData) ? bookingData as Array<Record<string, any>> : []); }).catch((requestError) => { if (active) setError(requestError instanceof Error ? requestError.message : "Reports are unavailable."); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, []);
   const filteredRequests = useMemo(() => requests.filter((request) => { const employee = request.employee || {}; return [request.id, request.tripType, request.fromLocation, request.toLocation, request.projectName, employee.name, employee.employeeId].join(" ").toLowerCase().includes(query.toLowerCase()); }), [requests, query]);
@@ -6132,7 +6299,91 @@ function AdminReports() {
   const upcoming = useMemo(() => requests.filter((request) => { const date = new Date(String(request.travelDate)); return !Number.isNaN(date.getTime()) && date >= new Date(new Date().toDateString()) && ["PENDING", "APPROVED", "BOOKED"].includes(String(request.status).toUpperCase()); }).sort((a, b) => String(a.travelDate).localeCompare(String(b.travelDate))).slice(0, 5), [requests]);
   const maxValue = (rows: Array<[string, number]>) => Math.max(1, ...rows.map(([, value]) => value));
   const rows = (values: Record<string, number>) => reportBarRows(values);
-  return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/admin/reports"]} /><div className="section-title-row section-title-spaced"><div><span className="card-kicker">ADMINISTRATION</span><h2 className="section-heading">Organization reports</h2><p className="page-description">Live request and booking insights calculated from Travora records.</p></div><span className="data-note"><ShieldCheck size={13} /> Live backend data</span></div><div className="panel report-filter-panel"><div className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter report rows by employee, project or route" /></div><span className="data-note">{loading ? "Loading source records…" : `${filteredRequests.length + filteredBookings.length} matching records`}</span></div>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}{loading ? <EmptyState icon={<Clock3 size={20} />} title="Loading reports" description="Fetching travel requests and bookings from Travora." /> : !requests.length && !bookings.length ? <EmptyState icon={<BarChart3 size={20} />} title="No report data" description="Reports will populate when the backend returns travel requests or bookings." /> : <><section className="stats-grid"><StatCard label="Total requests" value={String(requests.length)} detail="All returned statuses" icon={<FileText size={18} />} /><StatCard label="Pending requests" value={String(pending)} detail="Backend status: Pending" icon={<Clock3 size={18} />} accent="stat-accent" /><StatCard label="Approved requests" value={String(approved)} detail="Backend status: Approved" icon={<Check size={18} />} /><StatCard label="Rejected requests" value={String(rejected)} detail="Backend status: Rejected" icon={<XCircle size={18} />} /><StatCard label="Total bookings" value={String(bookings.length)} detail="All returned records" icon={<TicketCheck size={18} />} /><StatCard label="Active bookings" value={String(activeBookings)} detail="Not cancelled" icon={<Plane size={18} />} /><StatCard label="Cancelled bookings" value={String(cancelledBookings)} detail="Backend cancellation flag" icon={<XCircle size={18} />} />{costs.length > 0 && <><StatCard label="Total travel spend" value={totalSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })} detail="Sum of returned booking costs" icon={<WalletCards size={18} />} /><StatCard label="Average booking cost" value={averageCost.toLocaleString("en-IN", { maximumFractionDigits: 2 })} detail={`${costs.length} numeric cost records`} icon={<WalletCards size={18} />} /></>}</section><section className="report-dashboard-grid"><ReportBars title="Trip types" eyebrow="REQUEST MIX" rows={rows(tripTypes)} max={maxValue(rows(tripTypes))} empty="No trip type values returned." /><ReportBars title="Top routes" eyebrow="REQUEST ROUTES" rows={rows(routes)} max={maxValue(rows(routes))} empty="No route values returned." /><ReportBars title="Projects" eyebrow="REQUEST CONTEXT" rows={rows(projects)} max={maxValue(rows(projects))} empty="No project values returned." /><ReportBars title="Providers" eyebrow="BOOKING MIX" rows={rows(providers)} max={maxValue(rows(providers))} empty="No provider values returned." /><ReportBars title="Booking types" eyebrow="BOOKING MIX" rows={rows(bookingTypes)} max={maxValue(rows(bookingTypes))} empty="No booking type values returned." /><div className="panel report-list-panel"><div className="section-title-row"><div><span className="card-kicker">UPCOMING TRIPS</span><h2 className="section-heading">Next travel dates</h2></div><CalendarDays size={18} className="panel-icon" /></div>{upcoming.length ? <div className="report-upcoming-list">{upcoming.map((request) => <div className="report-upcoming-row" key={request.id}><span className="journey-icon"><Plane size={15} /></span><span><strong>{request.toLocation || "Destination unavailable"}</strong><small>{request.employee?.name || "Employee unavailable"} · {request.projectName || "Project unavailable"}</small></span><time>{adminRequestDate(request.travelDate)}</time></div>)}</div> : <EmptyState icon={<CalendarDays size={20} />} title="No upcoming trips" description="No pending, approved, or booked request with a future travel date was returned." />}</div></section></>}</div>;
+  return (
+    <div className="page-stack animate-page">
+      <PageTitle meta={pageMeta["/admin/reports"]} />
+      <div className="section-title-row section-title-spaced">
+        <div>
+          <span className="card-kicker">ADMINISTRATION</span>
+          <h2 className="section-heading">Organization reports & Master Extraction</h2>
+          <p className="page-description">Complete organizational travel spend, booking manifests, and executive PDF/Excel extractions.</p>
+        </div>
+        <span className="data-note"><ShieldCheck size={13} /> Live backend data</span>
+      </div>
+
+      {/* Complete Financial & Manifest Extraction Suite */}
+      <ReportExtractionSuite
+        requests={requests}
+        bookings={bookings}
+        currentUser={user}
+        roleTitle="Organization Master Audit & Travel Extraction"
+      />
+
+      <div className="panel report-filter-panel">
+        <div className="search-field">
+          <Search size={16} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter report rows by employee, project or route" />
+        </div>
+        <span className="data-note">{loading ? "Loading source records…" : `${filteredRequests.length + filteredBookings.length} matching records`}</span>
+      </div>
+      {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
+      {loading ? (
+        <EmptyState icon={<Clock3 size={20} />} title="Loading reports" description="Fetching travel requests and bookings from Travora." />
+      ) : !requests.length && !bookings.length ? (
+        <EmptyState icon={<BarChart3 size={20} />} title="No report data" description="Reports will populate when the backend returns travel requests or bookings." />
+      ) : (
+        <>
+          <section className="stats-grid">
+            <StatCard label="Total requests" value={String(requests.length)} detail="All returned statuses" icon={<FileText size={18} />} />
+            <StatCard label="Pending requests" value={String(pending)} detail="Backend status: Pending" icon={<Clock3 size={18} />} accent="stat-accent" />
+            <StatCard label="Approved requests" value={String(approved)} detail="Backend status: Approved" icon={<Check size={18} />} />
+            <StatCard label="Rejected requests" value={String(rejected)} detail="Backend status: Rejected" icon={<XCircle size={18} />} />
+            <StatCard label="Total bookings" value={String(bookings.length)} detail="All returned records" icon={<TicketCheck size={18} />} />
+            <StatCard label="Active bookings" value={String(activeBookings)} detail="Not cancelled" icon={<Plane size={18} />} />
+            <StatCard label="Cancelled bookings" value={String(cancelledBookings)} detail="Backend cancellation flag" icon={<XCircle size={18} />} />
+            {costs.length > 0 && (
+              <>
+                <StatCard label="Total travel spend" value={totalSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })} detail="Sum of returned booking costs" icon={<WalletCards size={18} />} />
+                <StatCard label="Average booking cost" value={averageCost.toLocaleString("en-IN", { maximumFractionDigits: 2 })} detail={`${costs.length} numeric cost records`} icon={<WalletCards size={18} />} />
+              </>
+            )}
+          </section>
+          <section className="report-dashboard-grid">
+            <ReportBars title="Trip types" eyebrow="REQUEST MIX" rows={rows(tripTypes)} max={maxValue(rows(tripTypes))} empty="No trip type values returned." />
+            <ReportBars title="Top routes" eyebrow="REQUEST ROUTES" rows={rows(routes)} max={maxValue(rows(routes))} empty="No route values returned." />
+            <ReportBars title="Projects" eyebrow="REQUEST CONTEXT" rows={rows(projects)} max={maxValue(rows(projects))} empty="No project values returned." />
+            <ReportBars title="Providers" eyebrow="BOOKING MIX" rows={rows(providers)} max={maxValue(rows(providers))} empty="No provider values returned." />
+            <ReportBars title="Booking types" eyebrow="BOOKING MIX" rows={rows(bookingTypes)} max={maxValue(rows(bookingTypes))} empty="No booking type values returned." />
+            <div className="panel report-list-panel">
+              <div className="section-title-row">
+                <div>
+                  <span className="card-kicker">UPCOMING TRIPS</span>
+                  <h2 className="section-heading">Next travel dates</h2>
+                </div>
+                <CalendarDays size={18} className="panel-icon" />
+              </div>
+              {upcoming.length ? (
+                <div className="report-upcoming-list">
+                  {upcoming.map((request) => (
+                    <div className="report-upcoming-row" key={request.id}>
+                      <span className="journey-icon"><Plane size={15} /></span>
+                      <span>
+                        <strong>{request.toLocation || "Destination unavailable"}</strong>
+                        <small>{request.employee?.name || "Employee unavailable"} · {request.projectName || "Project unavailable"}</small>
+                      </span>
+                      <time>{adminRequestDate(request.travelDate)}</time>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon={<CalendarDays size={20} />} title="No upcoming trips" description="No pending, approved, or booked request with a future travel date was returned." />
+              )}
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
 }
 function ReportBars({ title, eyebrow, rows, max, empty }: { title: string; eyebrow: string; rows: Array<[string, number]>; max: number; empty: string }) { return <div className="panel report-bars-panel"><div className="section-title-row"><div><span className="card-kicker">{eyebrow}</span><h2 className="section-heading">{title}</h2></div><BarChart3 size={18} className="panel-icon" /></div>{rows.length ? <div className="report-bars">{rows.map(([label, value]) => <div className="report-bar-row" key={label}><div><strong>{label}</strong><span>{value}</span></div><div className="report-bar-track"><span style={{ width: `${Math.round((value / max) * 100)}%` }} /></div></div>)}</div> : <div className="report-inline-empty">{empty}</div>}</div>; }
 
@@ -6596,6 +6847,7 @@ function AppRouter() {
       "/approver/bookings",
       "/approver/bulk-bookings",
       "/approver/history",
+      "/approver/reports",
       "/employee/reports",
       "/employee/support",
     ],
@@ -6604,6 +6856,7 @@ function AppRouter() {
       "/travel-desk/bookings",
       "/travel-desk/bulk-bookings",
       "/travel-desk/cancellations",
+      "/travel-desk/reports",
       "/employee/reports",
     ],
     ADMIN: [
@@ -6661,7 +6914,7 @@ function AppRouter() {
   else if (path === "/employee/expenses") page = <ExpensesPage />;
   else if (path === "/employee/profile") page = <ProfilePage user={user} />;
   else if (path === "/employee/approvals") page = <Approvals history />;
-  else if (path === "/employee/reports") page = <Reports />;
+  else if (path === "/employee/reports" || path === "/approver/reports" || path === "/travel-desk/reports") page = <Reports />;
   else if (path === "/employee/support") page = <Support />;
   else if (path === "/approver") page = <Approvals />;
   else if (path === "/approver/bookings") page = <ApproverBookings />;

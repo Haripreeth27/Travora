@@ -194,6 +194,13 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                     <FileText size={16} className="text-[#14B8A6]" />
                     <span>Approval Decision History</span>
                   </Command.Item>
+                  <Command.Item
+                    onSelect={() => navigate("/approver/reports")}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#101828] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                  >
+                    <BarChart3 size={16} className="text-[#14B8A6]" />
+                    <span>Team Travel Reports & Extraction</span>
+                  </Command.Item>
                 </>
               )}
 
@@ -212,6 +219,13 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                   >
                     <TicketCheck size={16} className="text-[#14B8A6]" />
                     <span>Booking Queue</span>
+                  </Command.Item>
+                  <Command.Item
+                    onSelect={() => navigate("/travel-desk/reports")}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#101828] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                  >
+                    <BarChart3 size={16} className="text-[#14B8A6]" />
+                    <span>Desk Bookings & Vendor Report</span>
                   </Command.Item>
                 </>
               )}
