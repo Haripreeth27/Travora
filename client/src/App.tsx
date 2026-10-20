@@ -1089,7 +1089,199 @@ function PlanTrip() {
     } finally { setSubmitting(false); }
   }
   return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/employee/plan-trip"]} />
-    {submitted ? <div className="success-card"><div className="success-mark"><Check size={22} /></div><div><span className="card-kicker">REQUEST SUBMITTED</span><h2>Your request is with your approver.</h2><p>Travora has sent the travel request to the existing Spring Boot workflow. You can follow its status from My journeys.</p><div className="welcome-actions"><button className="button button-primary" onClick={() => setSubmitted(false)}>Create another request</button><Link href="/employee/journeys" className="button button-ghost">View journeys <ArrowUpRight size={16} /></Link></div></div></div> : <form className="form-layout" onSubmit={submitTrip}><div className="panel form-panel"><div className="form-intro"><span className="card-kicker">TRAVEL REQUEST</span><h2>Tell us about the trip</h2><p>These details help your approver and travel desk move quickly.</p></div><div className="form-section"><div className="form-section-heading"><span>01</span><div><h3>Trip details</h3><p>Start with the basics of your journey.</p></div></div><div className="form-grid"><label className="field"><span>Trip type</span><select name="tripType" defaultValue="BUSINESS"><option value="BUSINESS">Business</option><option value="CONFERENCE">Conference</option><option value="TRAINING">Training</option></select></label><label className="field"><span>From location</span><div className="input-with-icon"><Compass size={16} /><input name="fromLocation" required placeholder="City or airport" /></div></label><label className="field"><span>To location</span><div className="input-with-icon"><Plane size={16} /><input name="toLocation" required placeholder="City or airport" /></div></label><label className="field"><span>Travel date</span><div className="input-with-icon"><CalendarDays size={16} /><input name="travelDate" required type="date" min={todayStr} /></div></label><label className="field"><span>Return date</span><div className="input-with-icon"><CalendarDays size={16} /><input name="returnDate" required type="date" min={todayStr} /></div></label><label className="field"><span>Project name</span><input name="projectName" required placeholder="e.g. APAC launch" /></label></div></div><div className="form-section"><div className="form-section-heading"><span>02</span><div><h3>Business context</h3><p>Give your approver the context they need.</p></div></div><label className="field"><span>Reason for travel</span><textarea name="reason" required placeholder="What is the purpose of this trip?" rows={4} /></label></div>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}</div><aside className="form-aside"><div className="aside-card aside-dark"><Sparkles size={18} /><h3>Built for the way work moves.</h3><p>Travora keeps the request, approval and booking context together so no detail gets lost in the handoff.</p><div className="aside-line" /><span>Authenticated employee context will be attached automatically.</span></div><div className="aside-card"><div className="section-title-row"><span className="card-kicker">BEFORE YOU SUBMIT</span><Check size={16} className="check-icon" /></div><ul className="check-list"><li><Check size={14} /> Dates are accurate</li><li><Check size={14} /> Project is correctly named</li><li><Check size={14} /> Reason is clear to your approver</li></ul></div><div className="form-actions"><button type="submit" className="button button-primary button-wide" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"} <ArrowUpRight size={16} /></button><button type="button" className="button button-ghost button-wide" onClick={() => toast("Draft saving is not part of the inspected backend contract yet.")}>Save as draft</button><p className="form-note"><ShieldCheck size={14} /> Your employee identity comes from the authenticated JWT session.</p></div></aside></form>}
+    {submitted ? (
+      <div className="success-card">
+        <div className="success-mark">
+          <Check size={24} strokeWidth={2.5} />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="card-kicker">REQUEST SUBMITTED</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] border border-[#14B8A6]/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6] animate-pulse" /> Pending Approval
+            </span>
+          </div>
+          <h2>Your request is with your approver.</h2>
+          <p>
+            Travora has sent your travel request to the corporate approval workflow. You can track real-time status and approver remarks from My Journeys.
+          </p>
+          <div className="welcome-actions">
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => setSubmitted(false)}
+            >
+              Create another request
+            </button>
+            <Link href="/employee/journeys" className="button button-ghost">
+              View journeys <ArrowUpRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <form className="form-layout" onSubmit={submitTrip}>
+        <div className="panel form-panel">
+          <div className="form-intro">
+            <span className="card-kicker">TRAVEL REQUEST</span>
+            <h2>Tell us about the trip</h2>
+            <p>These details help your approver and travel desk move quickly.</p>
+          </div>
+          <div className="form-section">
+            <div className="form-section-heading">
+              <span>01</span>
+              <div>
+                <h3>Trip details</h3>
+                <p>Start with the basics of your journey.</p>
+              </div>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Trip type</span>
+                <select name="tripType" defaultValue="BUSINESS">
+                  <option value="BUSINESS">Business</option>
+                  <option value="CONFERENCE">Conference</option>
+                  <option value="TRAINING">Training</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>From location</span>
+                <div className="input-with-icon">
+                  <Compass size={16} />
+                  <input
+                    name="fromLocation"
+                    required
+                    placeholder="City or airport"
+                    className="has-leading-icon"
+                  />
+                </div>
+              </label>
+              <label className="field">
+                <span>To location</span>
+                <div className="input-with-icon">
+                  <Plane size={16} />
+                  <input
+                    name="toLocation"
+                    required
+                    placeholder="City or airport"
+                    className="has-leading-icon"
+                  />
+                </div>
+              </label>
+              <label className="field">
+                <span>Travel date</span>
+                <div className="input-with-icon">
+                  <CalendarDays size={16} />
+                  <input
+                    name="travelDate"
+                    required
+                    type="date"
+                    min={todayStr}
+                    className="has-leading-icon"
+                  />
+                </div>
+              </label>
+              <label className="field">
+                <span>Return date</span>
+                <div className="input-with-icon">
+                  <CalendarDays size={16} />
+                  <input
+                    name="returnDate"
+                    required
+                    type="date"
+                    min={todayStr}
+                    className="has-leading-icon"
+                  />
+                </div>
+              </label>
+              <label className="field">
+                <span>Project name</span>
+                <input
+                  name="projectName"
+                  required
+                  placeholder="e.g. APAC launch"
+                />
+              </label>
+            </div>
+          </div>
+          <div className="form-section">
+            <div className="form-section-heading">
+              <span>02</span>
+              <div>
+                <h3>Business context</h3>
+                <p>Give your approver the context they need.</p>
+              </div>
+            </div>
+            <label className="field">
+              <span>Reason for travel</span>
+              <textarea
+                name="reason"
+                required
+                placeholder="What is the purpose of this trip?"
+                rows={4}
+              />
+            </label>
+          </div>
+          {error && (
+            <div className="form-error-message">
+              <XCircle size={15} />
+              {error}
+            </div>
+          )}
+        </div>
+        <aside className="form-aside">
+          <div className="aside-card aside-dark">
+            <Sparkles size={18} />
+            <h3>Built for the way work moves.</h3>
+            <p>
+              Travora keeps the request, approval and booking context together so
+              no detail gets lost in the handoff.
+            </p>
+            <div className="aside-line" />
+            <span>Authenticated employee context will be attached automatically.</span>
+          </div>
+          <div className="aside-card">
+            <div className="section-title-row">
+              <span className="card-kicker">BEFORE YOU SUBMIT</span>
+              <Check size={16} className="check-icon" />
+            </div>
+            <ul className="check-list">
+              <li>
+                <Check size={14} /> Dates are accurate
+              </li>
+              <li>
+                <Check size={14} /> Project is correctly named
+              </li>
+              <li>
+                <Check size={14} /> Reason is clear to your approver
+              </li>
+            </ul>
+          </div>
+          <div className="form-actions">
+            <button
+              type="submit"
+              className="button button-primary button-wide"
+              disabled={submitting}
+            >
+              {submitting ? "Submitting…" : "Submit request"} <ArrowUpRight size={16} />
+            </button>
+            <button
+              type="button"
+              className="button button-ghost button-wide"
+              onClick={() =>
+                toast("Draft saving is not part of the inspected backend contract yet.")
+              }
+            >
+              Save as draft
+            </button>
+            <p className="form-note">
+              <ShieldCheck size={14} /> Your employee identity comes from the
+              authenticated JWT session.
+            </p>
+          </div>
+        </aside>
+      </form>
+    )}
   </div>;
 }
 

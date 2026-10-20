@@ -807,6 +807,7 @@ code, kbd, .monospace {
   align-items: center !important;
   width: 100% !important;
 }
+.input-with-icon > svg,
 .input-with-icon svg {
   position: absolute !important;
   left: 14px !important;
@@ -814,11 +815,121 @@ code, kbd, .monospace {
   transform: translateY(-50%) !important;
   color: var(--ink-muted) !important;
   pointer-events: none !important;
-  z-index: 2 !important;
+  z-index: 5 !important;
+  width: 16px !important;
+  height: 16px !important;
 }
-.input-with-icon input {
-  padding-left: 42px !important;
+/* Bulletproof left padding so icon never overlaps input placeholder or text */
+.field .input-with-icon > input,
+.field .input-with-icon input,
+.input-with-icon > input,
+.input-with-icon input,
+input.has-leading-icon,
+.has-leading-icon {
+  padding-left: 46px !important;
 }
+
+/* Chrome/Safari native date picker styling to ensure date text starts after icon */
+.input-with-icon input[type="date"] {
+  padding-left: 46px !important;
+}
+.input-with-icon input[type="date"]::-webkit-datetime-edit {
+  padding-left: 2px !important;
+}
+.input-with-icon input[type="date"]::-webkit-date-and-time-value {
+  text-align: left !important;
+}
+
+/* Theme-Aware Success Confirmation Card */
+.success-card {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 22px !important;
+  padding: 32px 30px !important;
+  border-radius: var(--radius-lg, 18px) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  animation: fadeInScale 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.dark .success-card {
+  background: #111827 !important;
+  border-color: #1E293B !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4) !important;
+}
+
+.success-card::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 4px !important;
+  height: 100% !important;
+  background: linear-gradient(to bottom, #14B8A6, #0D9488) !important;
+}
+
+.success-mark {
+  display: grid !important;
+  place-items: center !important;
+  width: 48px !important;
+  height: 48px !important;
+  flex: 0 0 auto !important;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #14B8A6, #0D9488) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 18px rgba(20, 184, 166, 0.3) !important;
+}
+
+.success-card .card-kicker {
+  font-family: var(--font-heading) !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em !important;
+  color: #0D9488 !important;
+}
+
+.dark .success-card .card-kicker {
+  color: #2DD4BF !important;
+}
+
+.success-card h2 {
+  margin-top: 8px !important;
+  font-family: var(--font-heading) !important;
+  font-weight: 800 !important;
+  font-size: 26px !important;
+  letter-spacing: -0.02em !important;
+  color: var(--ink) !important;
+  line-height: 1.25 !important;
+}
+
+.dark .success-card h2 {
+  color: #F8FAFC !important;
+}
+
+.success-card p {
+  max-width: 620px !important;
+  margin-top: 10px !important;
+  font-family: var(--font-sans) !important;
+  color: var(--ink-soft) !important;
+  line-height: 1.6 !important;
+  font-size: 13.5px !important;
+}
+
+.dark .success-card p {
+  color: #94A3B8 !important;
+}
+
+.success-card .welcome-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-top: 22px !important;
+  flex-wrap: wrap !important;
+}
+
 
 .empty-state {
   display: flex !important;
