@@ -360,7 +360,7 @@ export function ReportExtractionSuite({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `Travora_Travel_Bookings_Report_${dateTag}.csv`);
+      link.setAttribute("download", `Trapple_Travel_Bookings_Report_${dateTag}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -388,7 +388,7 @@ export function ReportExtractionSuite({
         month: "long",
         year: "numeric",
       }).format(now);
-      const reportId = `TRV-EXP-${Math.floor(Math.random() * 900000 + 100000)}`;
+      const reportId = `TRP-EXP-${Math.floor(Math.random() * 900000 + 100000)}`;
 
       // Build printable HTML string
       const printWindow = window.open("", "_blank");
@@ -439,7 +439,7 @@ export function ReportExtractionSuite({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Travora Executive Travel & Bookings Report - ${reportId}</title>
+            <title>Trapple Executive Travel & Bookings Report - ${reportId}</title>
             <meta charset="utf-8" />
             <style>
               @page {
@@ -561,7 +561,7 @@ export function ReportExtractionSuite({
             <div class="header">
               <div class="logo-title">
                 <h1>MAHATHI INFRA SERVICES PVT. LTD.</h1>
-                <p>Travora Corporate Travel Management — Official Financial & Booking Extraction</p>
+                <p>Trapple Corporate Travel Management — Official Financial & Booking Extraction</p>
               </div>
               <div class="report-meta">
                 <div>Report Reference: <strong>${reportId}</strong></div>
@@ -631,7 +631,7 @@ export function ReportExtractionSuite({
             </div>
 
             <div class="footer">
-              <div>Travora Cloud Enterprise v2.4 · Mahathi Infra Services Pvt. Ltd. Confidential</div>
+              <div>Trapple Cloud Enterprise v2.4 · Mahathi Infra Services Pvt. Ltd. Confidential</div>
               <div>Page 1 of 1 · Generated automatically from verified JWT database records</div>
             </div>
 
@@ -667,7 +667,7 @@ export function ReportExtractionSuite({
           JSON.stringify(
             {
               company: "Mahathi Infra Services Pvt. Ltd.",
-              portal: "Travora Corporate Travel Management",
+              portal: "Trapple Corporate Travel Management",
               generatedAt: new Date().toISOString(),
               generatedBy: currentUser,
               summary: analytics,
@@ -681,7 +681,7 @@ export function ReportExtractionSuite({
       downloadAnchor.setAttribute("href", dataStr);
       downloadAnchor.setAttribute(
         "download",
-        `Travora_Travel_Extraction_${new Date().toISOString().slice(0, 10)}.json`
+        `Trapple_Travel_Extraction_${new Date().toISOString().slice(0, 10)}.json`
       );
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();

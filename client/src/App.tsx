@@ -203,10 +203,12 @@ function useTravelRequests(user?: AuthUser | null, refreshKey = 0) {
         setJourneys(list.map(toJourney));
       });
     };
+    window.addEventListener("trapple_cloud_synced", handleSync);
     window.addEventListener("travora_cloud_synced", handleSync);
 
     return () => {
       active = false;
+      window.removeEventListener("trapple_cloud_synced", handleSync);
       window.removeEventListener("travora_cloud_synced", handleSync);
     };
   }, [refreshKey, activeUser?.id, activeUser?.employeeId]);
@@ -339,9 +341,9 @@ const roleLabels: Record<Role, string> = {
 
 function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`brand-lockup ${compact ? "brand-lockup-compact" : ""}`} aria-label="Travora">
+    <div className={`brand-lockup ${compact ? "brand-lockup-compact" : ""}`} aria-label="Trapple">
       <span className="brand-mark"><Plane size={16} strokeWidth={2.4} /></span>
-      {!compact && <span className="brand-name">travora</span>}
+      {!compact && <span className="brand-name">trapple</span>}
     </div>
   );
 }
@@ -381,7 +383,7 @@ function Sidebar({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const initials = (user.username || "Travora").slice(0, 2).toUpperCase();
+  const initials = (user.username || "Trapple").slice(0, 2).toUpperCase();
   const categories = categorizedNavByRole[role] || [
     { category: "WORKSPACE", items: navByRole[role] },
   ];
@@ -408,7 +410,7 @@ function Sidebar({
         </div>
       </div>
 
-      <div className="workspace-switcher" title={collapsed ? "Mahathi Infra Services · Travora" : undefined}>
+      <div className="workspace-switcher" title={collapsed ? "Mahathi Infra Services · Trapple" : undefined}>
         <div className="workspace-avatar">MI</div>
         {!collapsed && (
           <div className="workspace-copy">
@@ -482,7 +484,7 @@ function Sidebar({
 function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOpenSearch: () => void; meta: { title: string }; user: AuthUser }) {
   const { theme, toggleTheme } = useTheme();
   const [syncing, setSyncing] = useState(false);
-  const initials = (user.username || "Travora").slice(0, 2).toUpperCase();
+  const initials = (user.username || "Trapple").slice(0, 2).toUpperCase();
 
   const handleSyncClick = async () => {
     setSyncing(true);
@@ -505,7 +507,7 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         <div className="breadcrumb">
           <span className="text-[#667085] dark:text-[#94A3B8]">Mahathi Infra</span>
           <ChevronRight size={13} className="text-[#94A3B8]" />
-          <span className="text-[#667085] dark:text-[#94A3B8]">Travora</span>
+          <span className="text-[#667085] dark:text-[#94A3B8]">Trapple</span>
           <ChevronRight size={13} className="text-[#94A3B8]" />
           <strong className="text-[#101828] dark:text-[#F8FAFC]">{meta.title}</strong>
         </div>
@@ -579,7 +581,7 @@ function NotificationBell() {
   useEffect(() => { if (!open) return; setLoading(true); setError(""); refresh().catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Notifications are unavailable.")).finally(() => setLoading(false)); }, [open]);
   async function markRead(id: string | number, event?: React.SyntheticEvent) { event?.preventDefault(); event?.stopPropagation(); const notificationId = String(id); setActionId(notificationId); setError(""); try { await notificationsApi.markRead(notificationId); await refresh(); toast.success("Notification marked as read."); } catch (requestError) { const message = requestError instanceof Error ? requestError.message : "Notification could not be marked as read."; setError(message); toast.error(message); } finally { setActionId(null); } }
   async function markAllRead(event?: React.SyntheticEvent) { event?.preventDefault(); event?.stopPropagation(); setActionId("all"); setError(""); try { await notificationsApi.markAllRead(); await refresh(); toast.success("All notifications marked as read."); } catch (requestError) { const message = requestError instanceof Error ? requestError.message : "Notifications could not be marked as read."; setError(message); toast.error(message); } finally { setActionId(null); } }
-  return <div className="notification-wrap"><button type="button" className="icon-button notification-button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Bell size={18} />{unread > 0 && <span className="notification-count">{unread > 9 ? "9+" : unread}</span>}</button>{open && <><button type="button" className="notification-dismiss" aria-label="Close notifications" onClick={() => setOpen(false)} /><section className="notification-panel" aria-label="Notifications"><div className="notification-panel-header"><div><span className="card-kicker">TRAVORA INBOX</span><h2>Notifications</h2></div>{unread > 0 && <button type="button" className="text-link" disabled={actionId === "all"} onPointerDown={(event) => event.stopPropagation()} onClick={markAllRead}>{actionId === "all" ? "Updating…" : "Mark all as read"}</button>}</div>{loading ? <div className="notification-state"><Clock3 size={18} /> Loading notifications…</div> : error ? <div className="notification-state notification-error"><XCircle size={18} />{error}</div> : items.length ? <div className="notification-list">{items.map((item) => <div className={`notification-item ${item.read ? "read" : "unread"}`} key={String(item.id)}><span className={`notification-type notification-type-${String(item.type || "").toLowerCase()}`}><Bell size={14} /></span><span className="notification-copy"><strong>{item.title}</strong><span>{item.message}</span><small>{formatNotificationTime(item.createdAt)}</small></span>{!item.read && <button type="button" className="notification-mark-read" disabled={actionId === String(item.id)} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => markRead(item.id, event)}>{actionId === String(item.id) ? "Updating…" : "Mark as read"}</button>}{!item.read && <span className="notification-unread-dot" />}</div>)}</div> : <div className="notification-state"><Bell size={20} /><strong>You’re all caught up</strong><span>Important travel activity will appear here.</span></div>}</section></>}</div>;
+  return <div className="notification-wrap"><button type="button" className="icon-button notification-button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Bell size={18} />{unread > 0 && <span className="notification-count">{unread > 9 ? "9+" : unread}</span>}</button>{open && <><button type="button" className="notification-dismiss" aria-label="Close notifications" onClick={() => setOpen(false)} /><section className="notification-panel" aria-label="Notifications"><div className="notification-panel-header"><div><span className="card-kicker">TRAPPLE INBOX</span><h2>Notifications</h2></div>{unread > 0 && <button type="button" className="text-link" disabled={actionId === "all"} onPointerDown={(event) => event.stopPropagation()} onClick={markAllRead}>{actionId === "all" ? "Updating…" : "Mark all as read"}</button>}</div>{loading ? <div className="notification-state"><Clock3 size={18} /> Loading notifications…</div> : error ? <div className="notification-state notification-error"><XCircle size={18} />{error}</div> : items.length ? <div className="notification-list">{items.map((item) => <div className={`notification-item ${item.read ? "read" : "unread"}`} key={String(item.id)}><span className={`notification-type notification-type-${String(item.type || "").toLowerCase()}`}><Bell size={14} /></span><span className="notification-copy"><strong>{item.title}</strong><span>{item.message}</span><small>{formatNotificationTime(item.createdAt)}</small></span>{!item.read && <button type="button" className="notification-mark-read" disabled={actionId === String(item.id)} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => markRead(item.id, event)}>{actionId === String(item.id) ? "Updating…" : "Mark as read"}</button>}{!item.read && <span className="notification-unread-dot" />}</div>)}</div> : <div className="notification-state"><Bell size={20} /><strong>You’re all caught up</strong><span>Important travel activity will appear here.</span></div>}</section></>}</div>;
 }
 function formatNotificationTime(value: unknown) { if (!value) return "Just now"; const date = new Date(String(value)); if (Number.isNaN(date.getTime())) return String(value); const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000)); if (minutes < 1) return "Just now"; if (minutes < 60) return `${minutes}m ago`; const hours = Math.floor(minutes / 60); if (hours < 24) return `${hours}h ago`; return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(date); }
 
@@ -589,7 +591,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
   const [searchOpen, setSearchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem("travora_sidebar_collapsed") === "true";
+      return (localStorage.getItem("trapple_sidebar_collapsed") ?? localStorage.getItem("travora_sidebar_collapsed")) === "true";
     } catch {
       return false;
     }
@@ -599,7 +601,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem("travora_sidebar_collapsed", String(next));
+        localStorage.setItem("trapple_sidebar_collapsed", String(next));
       } catch {}
       return next;
     });
@@ -1106,7 +1108,7 @@ function PlanTrip() {
           </div>
           <h2>Your request is with your approver.</h2>
           <p>
-            Travora has sent your travel request to the corporate approval workflow. You can track real-time status and approver remarks from My Journeys.
+            Trapple has sent your travel request to the corporate approval workflow. You can track real-time status and approver remarks from My Journeys.
           </p>
           <div className="welcome-actions">
             <button
@@ -1237,7 +1239,7 @@ function PlanTrip() {
             <Sparkles size={18} />
             <h3>Built for the way work moves.</h3>
             <p>
-              Travora keeps the request, approval and booking context together so
+              Trapple keeps the request, approval and booking context together so
               no detail gets lost in the handoff.
             </p>
             <div className="aside-line" />
@@ -1430,7 +1432,7 @@ function Journeys() {
   const handleExportCsv = () => {
     const headers = ["Journey ID", "Destination", "From", "To", "Dates", "Trip Type", "Project", "Status"];
     const rows = filtered.map((j) => [j.id, j.destination, j.from, j.to, j.dates, j.tripType, j.project, j.status]);
-    exportToCsv("travora_journeys", headers, rows);
+    exportToCsv("trapple_journeys", headers, rows);
     toast.success("Journeys exported to CSV.");
   };
 
@@ -1480,7 +1482,7 @@ function Journeys() {
         {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
         {bookingError && <div className="form-error-message"><XCircle size={15} />{bookingError}</div>}
         {loading || bookingLoading ? (
-          <EmptyState icon={<Clock3 size={20} />} title="Loading journeys" description="Fetching your travel requests and booking records from Travora." />
+          <EmptyState icon={<Clock3 size={20} />} title="Loading journeys" description="Fetching your travel requests and booking records from Trapple." />
         ) : filtered.length ? (
           <div className="responsive-table">
             <table>
@@ -2908,10 +2910,12 @@ function ApproverBulkBookings() {
     const handleSync = () => {
       setRefreshKey((k) => k + 1);
     };
+    window.addEventListener("trapple_cloud_synced", handleSync);
     window.addEventListener("travora_cloud_synced", handleSync);
 
     return () => {
       active = false;
+      window.removeEventListener("trapple_cloud_synced", handleSync);
       window.removeEventListener("travora_cloud_synced", handleSync);
     };
   }, [refreshKey]);
@@ -3673,7 +3677,7 @@ function Approvals({ history = false }: { history?: boolean }) {
     try {
       const approver = user?.username || "authenticated approver";
       if (action === "approve") await travelRequestsApi.approve(journey.id, approver);
-      else await travelRequestsApi.reject(journey.id, approver, "Rejected from Travora approval workspace.");
+      else await travelRequestsApi.reject(journey.id, approver, "Rejected from Trapple approval workspace.");
       toast.success(`Request ${action === "approve" ? "approved" : "rejected"}.`);
       setRefreshKey((k) => k + 1);
     } catch (decisionError) {
@@ -3724,7 +3728,7 @@ function Approvals({ history = false }: { history?: boolean }) {
         {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
 
         {loading ? (
-          <EmptyState icon={<Clock3 size={20} />} title="Loading approvals" description="Fetching requests from Travora." />
+          <EmptyState icon={<Clock3 size={20} />} title="Loading approvals" description="Fetching requests from Trapple." />
         ) : rows.length ? (
           <div className="approval-list">
             {rows.map((request) => {
@@ -3896,7 +3900,7 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
             <TicketCheck size={26} className="text-emerald-400" />
             <div>
               <span style={{ fontSize: 10, letterSpacing: "0.08em", fontWeight: 800, textTransform: "uppercase", opacity: 0.8 }}>
-                Travora Enterprise Travel Desk
+                Trapple Enterprise Travel Desk
               </span>
               <h2 id="voucher-title" style={{ fontSize: 18, margin: 0, fontWeight: 700, color: "#fff" }}>
                 Official Travel Dispatch Voucher
@@ -4047,7 +4051,7 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
               <div>
                 <strong style={{ fontSize: 12, color: "var(--ink)" }}>Verified Corporate Travel Dispatch</strong>
                 <small style={{ display: "block", fontSize: 10, color: "var(--ink-muted)" }}>
-                  Authorized by Travora Central Travel Operations. Valid for airport/hotel check-in with employee ID.
+                  Authorized by Trapple Central Travel Operations. Valid for airport/hotel check-in with employee ID.
                 </small>
               </div>
             </div>
@@ -4123,10 +4127,12 @@ function TravelDesk() {
     const handleSync = () => {
       setRefreshKey((k) => k + 1);
     };
+    window.addEventListener("trapple_cloud_synced", handleSync);
     window.addEventListener("travora_cloud_synced", handleSync);
 
     return () => {
       active = false;
+      window.removeEventListener("trapple_cloud_synced", handleSync);
       window.removeEventListener("travora_cloud_synced", handleSync);
     };
   }, [refreshKey]);
@@ -4282,7 +4288,7 @@ function TravelDesk() {
         record?.notes || "",
       ];
     });
-    exportToCsv("travora_passenger_manifest", headers, dataRows);
+    exportToCsv("trapple_passenger_manifest", headers, dataRows);
     toast.success("Passenger manifest CSV exported successfully.");
   }
 
@@ -4327,7 +4333,7 @@ function TravelDesk() {
 
             {bookingError && <div className="form-error-message"><XCircle size={15} />{bookingError}</div>}
             {bookingsLoading ? (
-              <EmptyState icon={<Clock3 size={20} />} title="Loading bookings" description="Fetching booking records from Travora." />
+              <EmptyState icon={<Clock3 size={20} />} title="Loading bookings" description="Fetching booking records from Trapple." />
             ) : bookingRecords.length ? (
               <BookingTable
                 bookings={bookingRecords}
@@ -4410,7 +4416,7 @@ function TravelDesk() {
             </div>
 
             {bulkLoading ? (
-              <EmptyState icon={<Clock3 size={20} />} title="Loading bulk movements" description="Fetching bulk bookings from Travora." />
+              <EmptyState icon={<Clock3 size={20} />} title="Loading bulk movements" description="Fetching bulk bookings from Trapple." />
             ) : filteredBulkBookings.length ? (
               <div className="responsive-table">
                 <table>
@@ -5012,7 +5018,7 @@ function TravelDesk() {
             {bookingError && <div className="form-error-message"><XCircle size={15} />{bookingError}</div>}
 
             {loading || bookingsLoading ? (
-              <EmptyState icon={<Clock3 size={20} />} title="Loading queue" description="Fetching travel requests and booking records from Travora." />
+              <EmptyState icon={<Clock3 size={20} />} title="Loading queue" description="Fetching travel requests and booking records from Trapple." />
             ) : rows.length ? (
               <div className="responsive-table">
                 <table>
@@ -5883,8 +5889,12 @@ function Reports() {
   useEffect(() => {
     fetchReports();
     const handleSync = () => fetchReports();
+    window.addEventListener("trapple_cloud_synced", handleSync);
     window.addEventListener("travora_cloud_synced", handleSync);
-    return () => window.removeEventListener("travora_cloud_synced", handleSync);
+    return () => {
+      window.removeEventListener("trapple_cloud_synced", handleSync);
+      window.removeEventListener("travora_cloud_synced", handleSync);
+    };
   }, []);
 
   const counts = {
@@ -6005,7 +6015,7 @@ function Reports() {
             <Sparkles size={18} />
           </div>
           <div>
-            <span className="card-kicker">TRAVORA SIGNAL</span>
+            <span className="card-kicker">TRAPPLE SIGNAL</span>
             <h3>
               {loading
                 ? "Loading travel intelligence"
@@ -6028,7 +6038,7 @@ function Reports() {
 }
 function Destination({ name, count, width }: { name: string; count: string; width: string }) { return <div className="destination-item"><div><strong>{name}</strong><span>{count}</span></div><div className="destination-track"><span style={{ width }} /></div></div>; }
 
-function Support() { const faqs = [{ q: "How do I submit a travel request?", a: "Open Plan a trip, add your route, dates, project and business reason, then submit. Your employee identity is attached from the authenticated session." }, { q: "What happens after I submit?", a: "Your request moves to the assigned approver. Once approved, the Travel Desk can confirm the booking and attach ticket details." }, { q: "Can I cancel a journey?", a: "Eligible requests can be cancelled from the journey detail view. Cancellation eligibility and any fee rules come from your organization's policy." }, { q: "Where can I find my ticket?", a: "Open My journeys and select a booked trip. Your ticket number, airline and booking reference will appear as soon as the Travel Desk adds them." }]; const [open, setOpen] = useState(0); return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/employee/support"]} /><section className="support-hero"><div className="support-symbol"><Headphones size={25} /></div><div><span className="card-kicker">TRAVORA HELP CENTER</span><h2>We’re here to keep work travel simple.</h2><p>Find a quick answer below, or reach out to your internal travel desk.</p></div><button className="button button-primary" onClick={() => toast("Support contact will connect to your internal help channel.")}>Contact travel desk <ArrowUpRight size={16} /></button></section><div className="support-grid"><div className="panel faq-panel"><div className="section-title-row"><div><span className="card-kicker">COMMON QUESTIONS</span><h2 className="section-heading">Frequently asked</h2></div><CircleHelp size={18} className="panel-icon" /></div><div className="faq-list">{faqs.map((faq, index) => <div className={`faq-item ${open === index ? "open" : ""}`} key={faq.q}><button onClick={() => setOpen(open === index ? -1 : index)}><span>{faq.q}</span><ChevronDown size={17} /></button>{open === index && <p>{faq.a}</p>}</div>)}</div></div><div className="panel support-links"><span className="card-kicker">GETTING STARTED</span><h2 className="section-heading">A smoother trip starts here.</h2><div className="support-link"><span className="support-link-icon"><FileText size={16} /></span><span><strong>Travel policy</strong><small>Know the essentials before you request.</small></span><ChevronRight size={15} /></div><div className="support-link"><span className="support-link-icon"><TicketCheck size={16} /></span><span><strong>Booking help</strong><small>Understand what happens after approval.</small></span><ChevronRight size={15} /></div><div className="support-link"><span className="support-link-icon"><WalletCards size={16} /></span><span><strong>Expense guidance</strong><small>Keep receipts and records together.</small></span><ChevronRight size={15} /></div></div></div></div>; }
+function Support() { const faqs = [{ q: "How do I submit a travel request?", a: "Open Plan a trip, add your route, dates, project and business reason, then submit. Your employee identity is attached from the authenticated session." }, { q: "What happens after I submit?", a: "Your request moves to the assigned approver. Once approved, the Travel Desk can confirm the booking and attach ticket details." }, { q: "Can I cancel a journey?", a: "Eligible requests can be cancelled from the journey detail view. Cancellation eligibility and any fee rules come from your organization's policy." }, { q: "Where can I find my ticket?", a: "Open My journeys and select a booked trip. Your ticket number, airline and booking reference will appear as soon as the Travel Desk adds them." }]; const [open, setOpen] = useState(0); return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/employee/support"]} /><section className="support-hero"><div className="support-symbol"><Headphones size={25} /></div><div><span className="card-kicker">TRAPPLE HELP CENTER</span><h2>We’re here to keep work travel simple.</h2><p>Find a quick answer below, or reach out to your internal travel desk.</p></div><button className="button button-primary" onClick={() => toast("Support contact will connect to your internal help channel.")}>Contact travel desk <ArrowUpRight size={16} /></button></section><div className="support-grid"><div className="panel faq-panel"><div className="section-title-row"><div><span className="card-kicker">COMMON QUESTIONS</span><h2 className="section-heading">Frequently asked</h2></div><CircleHelp size={18} className="panel-icon" /></div><div className="faq-list">{faqs.map((faq, index) => <div className={`faq-item ${open === index ? "open" : ""}`} key={faq.q}><button onClick={() => setOpen(open === index ? -1 : index)}><span>{faq.q}</span><ChevronDown size={17} /></button>{open === index && <p>{faq.a}</p>}</div>)}</div></div><div className="panel support-links"><span className="card-kicker">GETTING STARTED</span><h2 className="section-heading">A smoother trip starts here.</h2><div className="support-link"><span className="support-link-icon"><FileText size={16} /></span><span><strong>Travel policy</strong><small>Know the essentials before you request.</small></span><ChevronRight size={15} /></div><div className="support-link"><span className="support-link-icon"><TicketCheck size={16} /></span><span><strong>Booking help</strong><small>Understand what happens after approval.</small></span><ChevronRight size={15} /></div><div className="support-link"><span className="support-link-icon"><WalletCards size={16} /></span><span><strong>Expense guidance</strong><small>Keep receipts and records together.</small></span><ChevronRight size={15} /></div></div></div></div>; }
 
 
 function adminRequestStatus(value: unknown) {
@@ -6163,7 +6173,7 @@ function AdminRequests() {
         </div>
         {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
         {loading ? (
-          <EmptyState icon={<Clock3 size={20} />} title="Loading requests" description="Fetching travel request activity from Travora." />
+          <EmptyState icon={<Clock3 size={20} />} title="Loading requests" description="Fetching travel request activity from Trapple." />
         ) : filtered.length ? (
           <div className="responsive-table">
             <table>
@@ -6278,7 +6288,7 @@ function AdminBookings() {
   useEffect(() => { let active = true; setLoading(true); setError(""); bookingsApi.list().then((data) => { if (active) setBookings(Array.isArray(data) ? data as Array<Record<string, any>> : []); }).catch((requestError) => { if (active) setError(requestError instanceof Error ? requestError.message : "Bookings are unavailable."); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, []);
   const statuses = useMemo(() => Array.from(new Set(bookings.map((booking) => adminBookingStatus(booking)))), [bookings]);
   const filtered = useMemo(() => bookings.filter((booking) => { const request = booking.travelRequest || {}; const employee = request.employee || {}; const haystack = [booking.id, booking.bookingReference, booking.bookingType, booking.provider, booking.cost, booking.status, adminBookingStatus(booking), request.id, request.tripType, request.fromLocation, request.toLocation, request.projectName, employee.name, employee.employeeId].join(" ").toLowerCase(); return (statusFilter === "ALL" || adminBookingStatus(booking) === statusFilter) && haystack.includes(query.toLowerCase()); }), [bookings, query, statusFilter]);
-  return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/admin/bookings"]} /><div className="section-title-row section-title-spaced"><div><span className="card-kicker">ADMINISTRATION</span><h2 className="section-heading">Booking activity</h2><p className="page-description">Review confirmed and cancelled bookings from the connected backend.</p></div><span className="data-note"><ShieldCheck size={13} /> Live backend data</span></div><div className="panel table-panel"><div className="table-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search employee, reference or route" /></div><div className="toolbar-filters"><Filter size={15} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="ALL">All statuses</option>{statuses.map((status) => <option value={status} key={status}>{status}</option>)}</select></div></div>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}{loading ? <EmptyState icon={<Clock3 size={20} />} title="Loading bookings" description="Fetching booking activity from Travora." /> : filtered.length ? <div className="responsive-table"><table><thead><tr><th>Employee</th><th>Booking</th><th>Trip</th><th>Route</th><th>Travel date</th><th>Provider</th><th>Status</th><th>Booked at</th><th /></tr></thead><tbody>{filtered.map((booking, index) => { const request = booking.travelRequest || {}; const employee = request.employee || {}; return <tr key={booking.id || index}><td><div className="table-journey"><span className="avatar avatar-tiny">{String(employee.name || employee.employeeId || "E").slice(0, 2).toUpperCase()}</span><span><strong>{employee.name || "Employee unavailable"}</strong><small>{employee.employeeId || "Employee ID unavailable"}</small></span></div></td><td><strong>{booking.bookingReference || "—"}</strong><small className="table-subline">Booking #{booking.id ?? "—"} · Request #{request.id ?? "—"}</small></td><td>{request.tripType || booking.bookingType || "—"}</td><td>{request.fromLocation || "—"} → {request.toLocation || "—"}</td><td>{adminRequestDate(request.travelDate)}</td><td>{booking.provider || "—"}</td><td><StatusBadge status={adminBookingStatus(booking) as any} /></td><td>{adminRequestDate(booking.bookedAt)}</td><td><button type="button" className="table-action" onClick={() => setSelected(booking)}>View details <ArrowUpRight size={14} /></button></td></tr>; })}</tbody></table></div> : <EmptyState icon={<TicketCheck size={20} />} title={bookings.length ? "No matching bookings" : "No bookings"} description={bookings.length ? "Try another search or status filter." : "Bookings will appear here when returned by the backend."} />}</div>{selected && <AdminBookingDetails booking={selected} onClose={() => setSelected(null)} />}</div>;
+  return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/admin/bookings"]} /><div className="section-title-row section-title-spaced"><div><span className="card-kicker">ADMINISTRATION</span><h2 className="section-heading">Booking activity</h2><p className="page-description">Review confirmed and cancelled bookings from the connected backend.</p></div><span className="data-note"><ShieldCheck size={13} /> Live backend data</span></div><div className="panel table-panel"><div className="table-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search employee, reference or route" /></div><div className="toolbar-filters"><Filter size={15} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="ALL">All statuses</option>{statuses.map((status) => <option value={status} key={status}>{status}</option>)}</select></div></div>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}{loading ? <EmptyState icon={<Clock3 size={20} />} title="Loading bookings" description="Fetching booking activity from Trapple." /> : filtered.length ? <div className="responsive-table"><table><thead><tr><th>Employee</th><th>Booking</th><th>Trip</th><th>Route</th><th>Travel date</th><th>Provider</th><th>Status</th><th>Booked at</th><th /></tr></thead><tbody>{filtered.map((booking, index) => { const request = booking.travelRequest || {}; const employee = request.employee || {}; return <tr key={booking.id || index}><td><div className="table-journey"><span className="avatar avatar-tiny">{String(employee.name || employee.employeeId || "E").slice(0, 2).toUpperCase()}</span><span><strong>{employee.name || "Employee unavailable"}</strong><small>{employee.employeeId || "Employee ID unavailable"}</small></span></div></td><td><strong>{booking.bookingReference || "—"}</strong><small className="table-subline">Booking #{booking.id ?? "—"} · Request #{request.id ?? "—"}</small></td><td>{request.tripType || booking.bookingType || "—"}</td><td>{request.fromLocation || "—"} → {request.toLocation || "—"}</td><td>{adminRequestDate(request.travelDate)}</td><td>{booking.provider || "—"}</td><td><StatusBadge status={adminBookingStatus(booking) as any} /></td><td>{adminRequestDate(booking.bookedAt)}</td><td><button type="button" className="table-action" onClick={() => setSelected(booking)}>View details <ArrowUpRight size={14} /></button></td></tr>; })}</tbody></table></div> : <EmptyState icon={<TicketCheck size={20} />} title={bookings.length ? "No matching bookings" : "No bookings"} description={bookings.length ? "Try another search or status filter." : "Bookings will appear here when returned by the backend."} />}</div>{selected && <AdminBookingDetails booking={selected} onClose={() => setSelected(null)} />}</div>;
 }
 
 
@@ -6328,7 +6338,7 @@ function AdminReports() {
       </div>
       {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
       {loading ? (
-        <EmptyState icon={<Clock3 size={20} />} title="Loading reports" description="Fetching travel requests and bookings from Travora." />
+        <EmptyState icon={<Clock3 size={20} />} title="Loading reports" description="Fetching travel requests and bookings from Trapple." />
       ) : !requests.length && !bookings.length ? (
         <EmptyState icon={<BarChart3 size={20} />} title="No report data" description="Reports will populate when the backend returns travel requests or bookings." />
       ) : (
@@ -6514,7 +6524,7 @@ function AdminSettings({ user }: { user: AuthUser }) {
             <div className="settings-row">
               <div>
                 <strong>Delete ALL requests & bookings</strong>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--ink-muted)" }}>Permanently wipes every travel request and booking in Travora for every user.</p>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--ink-muted)" }}>Permanently wipes every travel request and booking in Trapple for every user.</p>
               </div>
               <button
                 type="button"
@@ -6564,7 +6574,7 @@ function AdminSettings({ user }: { user: AuthUser }) {
             <div>
               <span className="card-kicker">AVAILABLE CONTROLS</span>
               <h2 className="section-heading">Configuration boundaries</h2>
-              <p>Travora keeps unsupported changes out of the UI.</p>
+              <p>Trapple keeps unsupported changes out of the UI.</p>
             </div>
           </div>
           <div className="settings-boundary-list">
@@ -6687,7 +6697,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
               v2.4 LTS
             </span>
           </div>
-          <h2>Sign in to Travora</h2>
+          <h2>Sign in to Trapple</h2>
           <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-1 mb-6">
             Enter your employee credentials to access your dedicated workspace.
           </p>
@@ -6782,7 +6792,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
       </div>
 
       <div className="login-bottom flex items-center justify-between text-xs text-[#667085] dark:text-[#94A3B8] pt-6 border-t border-[#E4E7EC] dark:border-[#1E293B]">
-        <span>Travora Enterprise · Mahathi Infra Services Pvt. Ltd.</span>
+        <span>Trapple Enterprise · Mahathi Infra Services Pvt. Ltd.</span>
         <span>Corporate Travel Desk Support: desk@mahathiinfra.com</span>
       </div>
     </div>

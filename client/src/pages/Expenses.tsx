@@ -88,11 +88,11 @@ import type { AuthUser } from "../lib/api";
 
 export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?: AuthUser | null }) {
   const userKey = user?.employeeId || (user?.id ? String(user.id) : "guest");
-  const storageKey = `travora_expenses_${userKey}`;
+  const storageKey = `trapple_expenses_${userKey}`;
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
+      const saved = localStorage.getItem(storageKey) || localStorage.getItem(`travora_expenses_${userKey}`);
       if (saved) return JSON.parse(saved);
     } catch {}
     return [];
@@ -187,7 +187,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
       item.status,
       item.notes || "",
     ]);
-    exportToCsv("travora_expenses", headers, rows);
+    exportToCsv("trapple_expenses", headers, rows);
     toast.success("Expense log exported to CSV.");
   };
 

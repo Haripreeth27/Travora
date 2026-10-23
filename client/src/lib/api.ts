@@ -354,12 +354,12 @@ export const DEMO_EMPLOYEES = REGISTERED_EMPLOYEES.map((emp) => ({
 }));
 
 export function getToken() {
-  const token = window.localStorage.getItem("travora_token");
+  const token = window.localStorage.getItem("trapple_token") || window.localStorage.getItem("travora_token");
   return token?.trim() || null;
 }
 
 export function getStoredUser<T = AuthUser>(): T | null {
-  const raw = window.localStorage.getItem("travora_user");
+  const raw = window.localStorage.getItem("trapple_user") || window.localStorage.getItem("travora_user");
   if (!raw) return null;
   try { return JSON.parse(raw) as T; } catch { return null; }
 }
@@ -369,6 +369,8 @@ export function isValidAuthUser(user: AuthUser | null): user is AuthUser {
 }
 
 export function clearAuth({ notify = false }: { notify?: boolean } = {}) {
+  window.localStorage.removeItem("trapple_token");
+  window.localStorage.removeItem("trapple_user");
   window.localStorage.removeItem("travora_token");
   window.localStorage.removeItem("travora_user");
   if (notify) window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
@@ -392,7 +394,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       },
     });
   } catch {
-    throw new Error("We couldn't reach Travora. Check your connection and try again.");
+    throw new Error("We couldn't reach Trapple. Check your connection and try again.");
   } finally {
     clearTimeout(timer);
   }
@@ -400,7 +402,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const body = await response.text();
   const isHtml = (response.headers.get("content-type") || "").includes("text/html") || body.trim().startsWith("<!doctype") || body.trim().startsWith("<!DOCTYPE") || body.trim().startsWith("<html");
   if (isHtml) {
-    throw new Error("Travora backend server not reached (HTML fallback).");
+    throw new Error("Trapple backend server not reached (HTML fallback).");
   }
   let data: unknown = null;
   try { data = body ? JSON.parse(body) : null; } catch { data = body || null; }
@@ -414,7 +416,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (response.status === 403) throw new Error("You don't have permission to access this area.");
   if (!response.ok) {
     const message = typeof data === "object" && data !== null ? (data as { message?: string; error?: string }).message || (data as { error?: string }).error : undefined;
-    throw new Error(message || (response.status >= 500 ? "Travora is having trouble right now. Please try again." : "Something went wrong. Please try again."));
+    throw new Error(message || (response.status >= 500 ? "Trapple is having trouble right now. Please try again." : "Something went wrong. Please try again."));
   }
   return data as T;
 }
@@ -560,6 +562,8 @@ export async function login(credentials: { username: string; password: string })
 
 export function persistAuth(user: AuthUser) {
   if (!user.token) throw new Error("Cannot create an authenticated session without a JWT.");
+  window.localStorage.setItem("trapple_token", user.token);
+  window.localStorage.setItem("trapple_user", JSON.stringify({ id: user.id, username: user.username, role: user.role, employeeId: user.employeeId ?? null }));
   window.localStorage.setItem("travora_token", user.token);
   window.localStorage.setItem("travora_user", JSON.stringify({ id: user.id, username: user.username, role: user.role, employeeId: user.employeeId ?? null }));
 }
@@ -880,6 +884,7 @@ export function handleIncomingCloudSync(msg: any) {
       else all.unshift(payload);
       _saveAllSystemBookings(all);
     }
+    window.dispatchEvent(new CustomEvent("trapple_cloud_synced", { detail: msg }));
     window.dispatchEvent(new CustomEvent("travora_cloud_synced", { detail: msg }));
   } catch (e) {
     console.warn("Failed to apply incoming cloud sync", e);
@@ -967,6 +972,7 @@ export async function manualCloudSync(): Promise<{ success: boolean; count: numb
         }
       } catch {}
     });
+    window.dispatchEvent(new CustomEvent("trapple_cloud_synced"));
     window.dispatchEvent(new CustomEvent("travora_cloud_synced"));
     return { success: true, count: applied };
   } catch (err) {
@@ -1859,7 +1865,7 @@ export const bulkBookingsApi = {
 export const healthApi = {
   check: async () => {
     try { return await apiRequest<string>("/api/health"); }
-    catch { return "Travora Frontend Client Ready (Backend demo mode)"; }
+    catch { return "Trapple Frontend Client Ready (Backend demo mode)"; }
   },
 };
 
@@ -1873,7 +1879,7 @@ export async function uploadDocument(file: File): Promise<{
   if (API_BASE_URL) {
     const formData = new FormData();
     formData.append("file", file);
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("travora_token") : null;
+    const token = typeof window !== "undefined" ? (window.localStorage.getItem("trapple_token") || window.localStorage.getItem("travora_token")) : null;
     const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},

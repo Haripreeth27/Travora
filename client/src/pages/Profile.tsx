@@ -26,7 +26,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
 
   const defaultProfile: UserProfile = {
     id: String(user.id || "USR"),
-    name: regEmp?.fullName || user.username || "Travora Traveler",
+    name: regEmp?.fullName || user.username || "Trapple Traveler",
     email: regEmp?.workEmail || `${user.username?.toLowerCase().replace(/\s+/g, ".") || "employee"}@mahathiinfra.com`,
     role: user.role,
     employeeId: user.employeeId || "EMP",
@@ -50,7 +50,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
 
   const [profile, setProfile] = useState<UserProfile>(() => {
     try {
-      const saved = localStorage.getItem(`travora_profile_${user.id || user.username}`);
+      const saved = localStorage.getItem(`trapple_profile_${user.id || user.username}`) || localStorage.getItem(`travora_profile_${user.id || user.username}`);
       if (saved) return JSON.parse(saved);
     } catch {}
     return defaultProfile;
@@ -78,7 +78,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
     };
 
     setProfile(updated);
-    localStorage.setItem(`travora_profile_${user.id || user.username}`, JSON.stringify(updated));
+    localStorage.setItem(`trapple_profile_${user.id || user.username}`, JSON.stringify(updated));
     setSavedSuccess(true);
     toast.success("Travel preferences updated successfully.");
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -150,7 +150,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
             <span className="stat-detail">Lifetime journeys</span>
           </div>
           <strong className="stat-value">{journeys.length}</strong>
-          <span className="stat-label">Trips coordinated through Travora</span>
+          <span className="stat-label">Trips coordinated through Trapple</span>
         </div>
 
         <div className="stat-card stat-accent">
@@ -300,7 +300,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
               <h3 className="font-bold text-white text-base">Duty of Care Active</h3>
             </div>
             <p className="text-xs text-[#E2E8F0] leading-relaxed">
-              Travora automatically registers all confirmed bookings with our 24/7 Corporate Medical & Travel Assistance helpline (International SOS).
+              Trapple automatically registers all confirmed bookings with our 24/7 Corporate Medical & Travel Assistance helpline (International SOS).
             </p>
             <div className="pt-2 border-t border-white/10 text-[11px] text-[#94A3B8]">
               24/7 Hotline: +1 (800) 528-7474

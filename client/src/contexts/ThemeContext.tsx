@@ -9,11 +9,11 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-const THEME_KEY = "travora_theme";
+const THEME_KEY = "trapple_theme";
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem(THEME_KEY);
+  const stored = window.localStorage.getItem(THEME_KEY) || window.localStorage.getItem("travora_theme");
   if (stored === "light" || stored === "dark") return stored;
   return "light";
 }
