@@ -1,5 +1,6 @@
 package com.traveldesk.backend.auth;
 
+import com.traveldesk.backend.company.Company;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -10,6 +11,10 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(nullable = false, unique = true)
     private String username;
@@ -29,6 +34,18 @@ public class User {
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 
     public String getUsername() {

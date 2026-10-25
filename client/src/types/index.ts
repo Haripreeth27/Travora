@@ -44,6 +44,7 @@ export type NavItem = {
 
 export type Expense = {
   id: string;
+  backendId?: number;
   journeyId?: string;
   destination: string;
   category: "Flight" | "Hotel" | "Meals" | "Transport" | "Per Diem" | "Supplies" | "Other";
@@ -54,6 +55,10 @@ export type Expense = {
   status: "Submitted" | "Approved" | "Reimbursed" | "Rejected";
   receiptName?: string;
   notes?: string;
+  employeeName?: string;
+  companyName?: string;
+  approverName?: string;
+  approvalComment?: string;
 };
 
 export type UserProfile = {

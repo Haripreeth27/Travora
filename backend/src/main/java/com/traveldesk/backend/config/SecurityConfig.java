@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
+                                "/api/companies/register",
                                 "/api/health",
                                 "/error"
                         ).permitAll()
@@ -64,7 +65,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/users",
                                 "/api/auth/users/**"
-                        ).hasRole("ADMIN")
+                        ).hasAnyRole("ADMIN", "COMPANY_ADMIN", "PLATFORM_ADMIN")
 
                         .requestMatchers(
                                 "/api/travel-requests"

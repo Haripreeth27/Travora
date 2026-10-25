@@ -1,5 +1,6 @@
 package com.traveldesk.backend.travelrequest;
 
+import com.traveldesk.backend.company.Company;
 import com.traveldesk.backend.employee.Employee;
 import jakarta.persistence.*;
 
@@ -13,6 +14,10 @@ public class TravelRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "employee_id", nullable = false)
@@ -49,6 +54,18 @@ public class TravelRequest {
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 
     public Employee getEmployee() {

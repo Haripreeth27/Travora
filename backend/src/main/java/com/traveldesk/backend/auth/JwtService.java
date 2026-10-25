@@ -39,10 +39,17 @@ public class JwtService {
     private final long expirationTime = 1000 * 60 * 60 * 24;
 
     public String generateToken(User user) {
-
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(user.getUsername())
-                .claim("role", user.getRole().name())
+                .claim("role", user.getRole().name());
+
+        if (user.getCompany() != null) {
+            builder.claim("companyId", user.getCompany().getId());
+            builder.claim("companyCode", user.getCompany().getCode());
+            builder.claim("companyName", user.getCompany().getName());
+        }
+
+        return builder
                 .issuedAt(new Date())
                 .expiration(
                         new Date(System.currentTimeMillis() + expirationTime)

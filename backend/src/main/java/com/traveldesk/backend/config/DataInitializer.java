@@ -3,6 +3,8 @@ package com.traveldesk.backend.config;
 import com.traveldesk.backend.auth.Role;
 import com.traveldesk.backend.auth.User;
 import com.traveldesk.backend.auth.UserRepository;
+import com.traveldesk.backend.company.Company;
+import com.traveldesk.backend.company.CompanyRepository;
 import com.traveldesk.backend.employee.Employee;
 import com.traveldesk.backend.employee.EmployeeRepository;
 
@@ -53,11 +55,18 @@ public class DataInitializer {
     CommandLineRunner initializeUsers(
             UserRepository userRepository,
             EmployeeRepository employeeRepository,
+            CompanyRepository companyRepository,
             PasswordEncoder passwordEncoder,
             @Value("${TRAVORA_ADMIN_USERNAME:admin}") String adminUsername,
             @Value("${TRAVORA_ADMIN_PASSWORD:password}") String adminPassword
     ) {
         return args -> {
+            // 0. Seed Default Company (MISPL)
+            Company defaultCompany = companyRepository.findByCode("MISPL").orElseGet(() -> {
+                Company c = new Company("Mahathi Infra Services Pvt. Ltd.", "MISPL", "mahathiinfra.com");
+                return companyRepository.save(c);
+            });
+
             // 1. Seed or synchronize ADMIN
             if (adminUsername != null && !adminUsername.isBlank()) {
                 User admin = userRepository.findByUsername(adminUsername).orElse(null);
@@ -67,6 +76,10 @@ public class DataInitializer {
                     admin.setPassword(passwordEncoder.encode(adminPassword));
                     admin.setRole(Role.ADMIN);
                     admin.setActive(true);
+                    admin.setCompany(defaultCompany);
+                    userRepository.save(admin);
+                } else if (admin.getCompany() == null) {
+                    admin.setCompany(defaultCompany);
                     userRepository.save(admin);
                 }
             }
@@ -79,6 +92,7 @@ public class DataInitializer {
                 desk.setRole(Role.TRAVEL_DESK);
                 desk.setEmployeeId("123456");
                 desk.setActive(true);
+                desk.setCompany(defaultCompany);
                 userRepository.save(desk);
             }
 
@@ -90,6 +104,7 @@ public class DataInitializer {
                 approver.setRole(Role.APPROVER);
                 approver.setEmployeeId("654321");
                 approver.setActive(true);
+                approver.setCompany(defaultCompany);
                 userRepository.save(approver);
             }
 
@@ -101,6 +116,7 @@ public class DataInitializer {
                     emp.setName(se.fullName);
                     emp.setDepartment(se.department);
                     emp.setDesignation(se.designation);
+                    emp.setCompany(defaultCompany);
                     employeeRepository.save(emp);
                 }
 
@@ -111,6 +127,7 @@ public class DataInitializer {
                     u.setRole(Role.EMPLOYEE);
                     u.setEmployeeId(se.empNumber);
                     u.setActive(true);
+                    u.setCompany(defaultCompany);
                     userRepository.save(u);
                 }
             }

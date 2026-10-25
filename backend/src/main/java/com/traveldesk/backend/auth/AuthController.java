@@ -48,7 +48,10 @@ public class AuthController {
                 user.getUsername(),
                 user.getRole(),
                 user.getEmployeeId(),
-                user.isActive()
+                user.isActive(),
+                user.getCompany() != null ? user.getCompany().getId() : null,
+                user.getCompany() != null ? user.getCompany().getCode() : null,
+                user.getCompany() != null ? user.getCompany().getName() : null
         );
     }
 
@@ -197,7 +200,10 @@ public class AuthController {
                 user.getId(),
                 user.getUsername(),
                 user.getRole(),
-                user.getEmployeeId()
+                user.getEmployeeId(),
+                user.getCompany() != null ? user.getCompany().getId() : null,
+                user.getCompany() != null ? user.getCompany().getCode() : null,
+                user.getCompany() != null ? user.getCompany().getName() : null
         );
     }
 
@@ -362,13 +368,24 @@ public class AuthController {
         private Role role;
         private String employeeId;
         private boolean active;
+        private Long companyId;
+        private String companyCode;
+        private String companyName;
 
         public UserSummaryResponse(Long id, String username, Role role, String employeeId, boolean active) {
+            this(id, username, role, employeeId, active, null, null, null);
+        }
+
+        public UserSummaryResponse(Long id, String username, Role role, String employeeId, boolean active,
+                                   Long companyId, String companyCode, String companyName) {
             this.id = id;
             this.username = username;
             this.role = role;
             this.employeeId = employeeId;
             this.active = active;
+            this.companyId = companyId;
+            this.companyCode = companyCode;
+            this.companyName = companyName;
         }
 
         public Long getId() {
@@ -390,6 +407,18 @@ public class AuthController {
         public boolean isActive() {
             return active;
         }
+
+        public Long getCompanyId() {
+            return companyId;
+        }
+
+        public String getCompanyCode() {
+            return companyCode;
+        }
+
+        public String getCompanyName() {
+            return companyName;
+        }
     }
 
     public static class LoginResponse {
@@ -398,6 +427,9 @@ public class AuthController {
         private String username;
         private Role role;
         private String employeeId;
+        private Long companyId;
+        private String companyCode;
+        private String companyName;
 
         public LoginResponse(
                 String token,
@@ -406,11 +438,27 @@ public class AuthController {
                 Role role,
                 String employeeId
         ) {
+            this(token, id, username, role, employeeId, null, null, null);
+        }
+
+        public LoginResponse(
+                String token,
+                Long id,
+                String username,
+                Role role,
+                String employeeId,
+                Long companyId,
+                String companyCode,
+                String companyName
+        ) {
             this.token = token;
             this.id = id;
             this.username = username;
             this.role = role;
             this.employeeId = employeeId;
+            this.companyId = companyId;
+            this.companyCode = companyCode;
+            this.companyName = companyName;
         }
 
         public String getToken() {
@@ -431,6 +479,18 @@ public class AuthController {
 
         public String getEmployeeId() {
             return employeeId;
+        }
+
+        public Long getCompanyId() {
+            return companyId;
+        }
+
+        public String getCompanyCode() {
+            return companyCode;
+        }
+
+        public String getCompanyName() {
+            return companyName;
         }
     }
 }

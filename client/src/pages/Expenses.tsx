@@ -18,61 +18,17 @@ import {
   Sparkles,
   X,
   Upload,
+  Check,
+  XCircle,
+  RotateCcw,
+  RefreshCw,
+  Trash2,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Expense, Journey } from "../types";
 import { exportToCsv } from "../utils/exportCsv";
-
-const INITIAL_EXPENSES: Expense[] = [
-  {
-    id: "EXP-1001",
-    destination: "Bengaluru Tech Hub",
-    category: "Flight",
-    amount: 8450,
-    currency: "INR",
-    date: "2026-10-02",
-    merchant: "IndiGo Airlines",
-    status: "Reimbursed",
-    receiptName: "indigo_ticket_AI982.pdf",
-    notes: "Direct flight BLR - DEL for client workshop",
-  },
-  {
-    id: "EXP-1002",
-    destination: "Bengaluru Tech Hub",
-    category: "Hotel",
-    amount: 14200,
-    currency: "INR",
-    date: "2026-10-04",
-    merchant: "The Chancery Pavilion",
-    status: "Approved",
-    receiptName: "hotel_folio_9281.pdf",
-    notes: "2 nights stay during corporate summit",
-  },
-  {
-    id: "EXP-1003",
-    destination: "Mumbai Financial District",
-    category: "Meals",
-    amount: 1850,
-    currency: "INR",
-    date: "2026-10-05",
-    merchant: "Trishna Restaurant",
-    status: "Submitted",
-    receiptName: "client_dinner_bill.jpg",
-    notes: "Dinner with regional partner team",
-  },
-  {
-    id: "EXP-1004",
-    destination: "Singapore Regional HQ",
-    category: "Transport",
-    amount: 1250,
-    currency: "INR",
-    date: "2026-10-06",
-    merchant: "Uber Airport Premier",
-    status: "Submitted",
-    receiptName: "uber_ride_receipt.pdf",
-    notes: "Terminal 2 to client premises",
-  },
-];
+import { expenseApi, type BackendExpense, type AuthUser } from "../lib/api";
 
 const CATEGORY_ICONS: Record<string, any> = {
   Flight: Plane,
@@ -84,7 +40,54 @@ const CATEGORY_ICONS: Record<string, any> = {
   Other: Receipt,
 };
 
-import type { AuthUser } from "../lib/api";
+function toFrontendCategory(cat: string): Expense["category"] {
+  switch (cat) {
+    case "FLIGHT": return "Flight";
+    case "ACCOMMODATION": return "Hotel";
+    case "MEALS": return "Meals";
+    case "TAXI": return "Transport";
+    default: return "Other";
+  }
+}
+
+function toBackendCategory(cat: Expense["category"]): string {
+  switch (cat) {
+    case "Flight": return "FLIGHT";
+    case "Hotel": return "ACCOMMODATION";
+    case "Meals": return "MEALS";
+    case "Transport": return "TAXI";
+    default: return "OTHER";
+  }
+}
+
+function toFrontendStatus(st: string): Expense["status"] {
+  switch (st) {
+    case "APPROVED": return "Approved";
+    case "REIMBURSED": return "Reimbursed";
+    case "REJECTED": return "Rejected";
+    default: return "Submitted";
+  }
+}
+
+function backendToExpense(b: BackendExpense): Expense {
+  return {
+    id: `EXP-${b.id}`,
+    backendId: b.id,
+    destination: b.travelRequestId ? `Trip #${b.travelRequestId}` : "Corporate Travel",
+    category: toFrontendCategory(b.category),
+    amount: Number(b.amount),
+    currency: b.currency || "INR",
+    date: b.expenseDate,
+    merchant: b.merchant,
+    status: toFrontendStatus(b.status),
+    receiptName: b.receiptName || (b.receiptUrl ? "receipt_attachment.pdf" : undefined),
+    notes: b.description || undefined,
+    employeeName: b.employeeName,
+    companyName: b.companyName,
+    approverName: b.approverName || undefined,
+    approvalComment: b.approvalComment || undefined,
+  };
+}
 
 export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?: AuthUser | null }) {
   const userKey = user?.employeeId || (user?.id ? String(user.id) : "guest");
@@ -98,6 +101,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
     return [];
   });
 
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -113,8 +117,41 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
   const [receiptFile, setReceiptFile] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
 
+  const canApprove =
+    user?.role === "APPROVER" ||
+    user?.role === "ADMIN" ||
+    user?.role === "COMPANY_ADMIN" ||
+    user?.role === "PLATFORM_ADMIN";
+
+  const canReimburse =
+    user?.role === "TRAVEL_DESK" ||
+    user?.role === "ADMIN" ||
+    user?.role === "COMPANY_ADMIN" ||
+    user?.role === "PLATFORM_ADMIN";
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const data = await expenseApi.getAll();
+      if (Array.isArray(data)) {
+        const mapped = data.map(backendToExpense);
+        setExpenses(mapped);
+      }
+    } catch {
+      // Backend not reached or offline; keep cached state
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(expenses));
+    fetchExpenses();
+  }, [userKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(expenses));
+    } catch {}
   }, [expenses, storageKey]);
 
   const stats = useMemo(() => {
@@ -137,47 +174,139 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
       const matchesQuery =
         item.merchant.toLowerCase().includes(query.toLowerCase()) ||
         item.destination.toLowerCase().includes(query.toLowerCase()) ||
-        item.id.toLowerCase().includes(query.toLowerCase());
+        item.id.toLowerCase().includes(query.toLowerCase()) ||
+        (item.employeeName && item.employeeName.toLowerCase().includes(query.toLowerCase()));
       const matchesCategory = categoryFilter === "ALL" || item.category === categoryFilter;
       const matchesStatus = statusFilter === "ALL" || item.status === statusFilter;
       return matchesQuery && matchesCategory && matchesStatus;
     });
   }, [expenses, query, categoryFilter, statusFilter]);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!merchant || !amount || Number(amount) <= 0) {
       toast.error("Please provide valid merchant and amount.");
       return;
     }
 
-    const newExpense: Expense = {
-      id: `EXP-${1000 + expenses.length + 1}`,
-      destination: destination || "General Business Travel",
-      category,
-      amount: Number(amount),
-      currency,
-      date: expenseDate,
-      merchant,
-      status: "Submitted",
-      receiptName: receiptFile || "attached_receipt.pdf",
-      notes,
-    };
+    try {
+      const created = await expenseApi.create({
+        category: toBackendCategory(category),
+        amount: Number(amount),
+        currency,
+        expenseDate,
+        merchant,
+        description: notes || undefined,
+        receiptName: receiptFile || undefined,
+      });
+      const newExp = backendToExpense(created);
+      setExpenses((prev) => [newExp, ...prev.filter((x) => x.id !== newExp.id)]);
+      toast.success("Expense claim submitted to server.");
+    } catch (err: any) {
+      // Fallback local save if backend offline
+      const newExpense: Expense = {
+        id: `EXP-${1000 + expenses.length + 1}`,
+        destination: destination || "General Business Travel",
+        category,
+        amount: Number(amount),
+        currency,
+        date: expenseDate,
+        merchant,
+        status: "Submitted",
+        receiptName: receiptFile || "attached_receipt.pdf",
+        notes,
+      };
+      setExpenses((prev) => [newExpense, ...prev]);
+      toast.info("Claim saved locally (backend sync pending).");
+    }
 
-    setExpenses([newExpense, ...expenses]);
-    toast.success("Expense claim submitted for approval.");
     setIsCreateOpen(false);
-    // Reset form
     setMerchant("");
     setAmount("");
     setNotes("");
     setReceiptFile(null);
   };
 
+  const handleApprove = async (item: Expense) => {
+    if (!item.backendId) {
+      setExpenses((prev) => prev.map((e) => (e.id === item.id ? { ...e, status: "Approved" } : e)));
+      toast.success(`Expense ${item.id} approved.`);
+      return;
+    }
+    try {
+      const res = await expenseApi.approve(item.backendId, "Approved via management portal");
+      const updated = backendToExpense(res);
+      setExpenses((prev) => prev.map((e) => (e.backendId === item.backendId ? updated : e)));
+      toast.success(`Expense ${item.id} approved successfully.`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to approve expense.");
+    }
+  };
+
+  const handleReject = async (item: Expense) => {
+    const comment = prompt("Please provide a reason for rejection:") || "Rejected by reviewer";
+    if (!item.backendId) {
+      setExpenses((prev) => prev.map((e) => (e.id === item.id ? { ...e, status: "Rejected" } : e)));
+      toast.info(`Expense ${item.id} rejected.`);
+      return;
+    }
+    try {
+      const res = await expenseApi.reject(item.backendId, comment);
+      const updated = backendToExpense(res);
+      setExpenses((prev) => prev.map((e) => (e.backendId === item.backendId ? updated : e)));
+      toast.info(`Expense ${item.id} rejected.`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject expense.");
+    }
+  };
+
+  const handleReimburse = async (item: Expense) => {
+    if (!item.backendId) {
+      setExpenses((prev) => prev.map((e) => (e.id === item.id ? { ...e, status: "Reimbursed" } : e)));
+      toast.success(`Expense ${item.id} marked as reimbursed.`);
+      return;
+    }
+    try {
+      const res = await expenseApi.reimburse(item.backendId);
+      const updated = backendToExpense(res);
+      setExpenses((prev) => prev.map((e) => (e.backendId === item.backendId ? updated : e)));
+      toast.success(`Expense ${item.id} reimbursed successfully.`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to mark expense as reimbursed.");
+    }
+  };
+
+  const handleDelete = async (item: Expense) => {
+    if (!confirm(`Delete claim ${item.id}?`)) return;
+    if (item.backendId) {
+      try {
+        await expenseApi.delete(item.backendId);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to delete expense from server.");
+        return;
+      }
+    }
+    setExpenses((prev) => prev.filter((e) => e.id !== item.id));
+    toast.success("Expense claim deleted.");
+  };
+
   const handleExportCsv = () => {
-    const headers = ["Expense ID", "Merchant", "Category", "Amount", "Currency", "Destination", "Date", "Status", "Notes"];
+    const headers = [
+      "Expense ID",
+      "Employee",
+      "Merchant",
+      "Category",
+      "Amount",
+      "Currency",
+      "Destination",
+      "Date",
+      "Status",
+      "Approver",
+      "Notes",
+    ];
     const rows = filtered.map((item) => [
       item.id,
+      item.employeeName || "",
       item.merchant,
       item.category,
       item.amount,
@@ -185,6 +314,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
       item.destination,
       item.date,
       item.status,
+      item.approverName || "",
       item.notes || "",
     ]);
     exportToCsv("trapple_expenses", headers, rows);
@@ -196,13 +326,26 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
       {/* Header */}
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Employee workspace</p>
-          <h1>Expense Tracker</h1>
+          <p className="eyebrow">Corporate travel & spend</p>
+          <h1>Expense Management</h1>
           <p className="page-description">
-            Submit trip out-of-pocket expenses, upload receipts, and monitor reimbursement statuses.
+            Submit trip out-of-pocket expenses, attach receipts, manage approvals, and disburse reimbursements.
+            {user?.companyName && (
+              <span className="inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#E6F4EA] text-[#137333] dark:bg-[#137333]/20 dark:text-[#81C995]">
+                <Building2 size={12} /> {user.companyName}
+              </span>
+            )}
           </p>
         </div>
         <div className="heading-actions flex items-center gap-3">
+          <button
+            type="button"
+            onClick={fetchExpenses}
+            className="button button-ghost flex items-center gap-2"
+            title="Refresh from server"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+          </button>
           <button
             type="button"
             onClick={handleExportCsv}
@@ -228,7 +371,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
             <span className="stat-detail">Total claimed</span>
           </div>
           <strong className="stat-value">₹{stats.totalClaimed.toLocaleString("en-IN")}</strong>
-          <span className="stat-label">{expenses.length} claims submitted</span>
+          <span className="stat-label">{expenses.length} claims on record</span>
         </div>
 
         <div className="stat-card stat-accent">
@@ -243,48 +386,37 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
         <div className="stat-card">
           <div className="stat-card-top">
             <span className="stat-icon"><FileCheck2 size={18} /></span>
-            <span className="stat-detail">Approved</span>
+            <span className="stat-detail">Approved pending payout</span>
           </div>
           <strong className="stat-value">₹{stats.approved.toLocaleString("en-IN")}</strong>
-          <span className="stat-label">In payroll processing</span>
+          <span className="stat-label">Ready for finance desk</span>
         </div>
 
         <div className="stat-card">
           <div className="stat-card-top">
             <span className="stat-icon"><Clock3 size={18} /></span>
-            <span className="stat-detail">Pending review</span>
+            <span className="stat-detail">In review</span>
           </div>
           <strong className="stat-value">₹{stats.pending.toLocaleString("en-IN")}</strong>
-          <span className="stat-label">With your approver</span>
+          <span className="stat-label">Awaiting managerial sign-off</span>
         </div>
       </section>
 
-      {/* Policy compliance alert */}
-      <div className="p-4 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/25 flex items-center justify-between text-xs text-[#0D9488] dark:text-[#2DD4BF]">
-        <div className="flex items-center gap-2.5">
-          <Sparkles size={16} className="shrink-0" />
-          <span>
-            <strong>Policy Auto-Check:</strong> 100% of your expenses are within standard per-diem limits for FY 2026.
-          </span>
-        </div>
-        <span className="font-semibold underline cursor-pointer hover:text-[#14B8A6]">View Travel Policy</span>
-      </div>
-
-      {/* Filter and Search toolbar */}
-      <div className="panel table-panel">
-        <div className="table-toolbar">
-          <div className="search-field">
+      {/* Filter and Search Bar */}
+      <div className="panel space-y-4">
+        <div className="table-filter-bar flex flex-wrap items-center justify-between gap-3">
+          <div className="search-field flex-1 min-w-[240px]">
             <Search size={16} />
             <input
+              placeholder="Search by merchant, employee, claim ID, or destination..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search merchant, trip or expense ID"
             />
           </div>
 
-          <div className="toolbar-filters flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <Filter size={15} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-[#52616a] dark:text-[#9bb0ac]">
+              <Filter size={14} />
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -326,6 +458,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                   <th>Amount</th>
                   <th>Receipt</th>
                   <th>Status</th>
+                  {(canApprove || canReimburse) && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -340,7 +473,9 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                           </span>
                           <span>
                             <strong>{item.merchant}</strong>
-                            <small>{item.id}</small>
+                            <small className="block text-xs text-muted">
+                              {item.id} {item.employeeName ? `• ${item.employeeName}` : ""}
+                            </small>
                           </span>
                         </div>
                       </td>
@@ -377,6 +512,52 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                           {item.status}
                         </span>
                       </td>
+                      {(canApprove || canReimburse) && (
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            {canApprove && item.status === "Submitted" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApprove(item)}
+                                  className="p-1.5 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+                                  title="Approve claim"
+                                >
+                                  <Check size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReject(item)}
+                                  className="p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400"
+                                  title="Reject claim"
+                                >
+                                  <XCircle size={15} />
+                                </button>
+                              </>
+                            )}
+                            {canReimburse && item.status === "Approved" && (
+                              <button
+                                type="button"
+                                onClick={() => handleReimburse(item)}
+                                className="px-2 py-1 rounded-md text-xs font-semibold bg-[#14B8A6] text-white hover:bg-[#0D9488]"
+                                title="Disburse payment"
+                              >
+                                Reimburse
+                              </button>
+                            )}
+                            {(user?.role === "ADMIN" || item.status === "Submitted") && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(item)}
+                                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500"
+                                title="Delete claim"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

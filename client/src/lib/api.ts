@@ -9,8 +9,17 @@ const API_BASE_URL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
   (isLocal ? "http://localhost:8080" : "");
 
-export type Role = "EMPLOYEE" | "APPROVER" | "TRAVEL_DESK" | "ADMIN";
-export type AuthUser = { id: number; username: string; role: Role; employeeId?: string | null; token?: string };
+export type Role = "EMPLOYEE" | "APPROVER" | "TRAVEL_DESK" | "ADMIN" | "COMPANY_ADMIN" | "PLATFORM_ADMIN";
+export type AuthUser = {
+  id: number;
+  username: string;
+  role: Role;
+  employeeId?: string | null;
+  token?: string;
+  companyId?: number | null;
+  companyCode?: string | null;
+  companyName?: string | null;
+};
 export type ApiRequestOptions = RequestInit & {
   skipAuth?: boolean;
   ignoreAuthFailure?: boolean;
@@ -18,7 +27,7 @@ export type ApiRequestOptions = RequestInit & {
 };
 
 export const AUTH_EXPIRED_EVENT = "travora:auth-expired";
-const VALID_ROLES: Role[] = ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"];
+const VALID_ROLES: Role[] = ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN", "COMPANY_ADMIN", "PLATFORM_ADMIN"];
 
 export const DEMO_REQUESTS: any[] = [];
 export const DEMO_BOOKINGS: any[] = [];
@@ -1910,4 +1919,94 @@ export async function uploadDocument(file: File): Promise<{
 }
 
 export const API_CONFIG = { baseUrl: API_BASE_URL };
+
+export type BackendExpense = {
+  id: number;
+  companyId?: number;
+  companyName?: string;
+  travelRequestId?: number | null;
+  employeeId: number;
+  employeeName: string;
+  employeeCode: string;
+  category: "FLIGHT" | "ACCOMMODATION" | "MEALS" | "TAXI" | "FUEL" | "OTHER";
+  amount: number;
+  currency: string;
+  expenseDate: string;
+  merchant: string;
+  description?: string;
+  receiptUrl?: string;
+  receiptName?: string;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REIMBURSED" | "REJECTED";
+  approverName?: string;
+  approvalComment?: string;
+  approvedAt?: string;
+  createdAt: string;
+};
+
+export const expenseApi = {
+  getAll: async (status?: string): Promise<BackendExpense[]> => {
+    const query = status && status !== "ALL" ? `?status=${status}` : "";
+    return await apiRequest<BackendExpense[]>(`/api/expenses${query}`);
+  },
+  getById: async (id: number | string): Promise<BackendExpense> => {
+    return await apiRequest<BackendExpense>(`/api/expenses/${id}`);
+  },
+  create: async (data: {
+    travelRequestId?: number | null;
+    category: string;
+    amount: number;
+    currency?: string;
+    expenseDate: string;
+    merchant: string;
+    description?: string;
+    receiptUrl?: string;
+    receiptName?: string;
+  }): Promise<BackendExpense> => {
+    return await apiRequest<BackendExpense>("/api/expenses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+  approve: async (id: number | string, comment?: string): Promise<BackendExpense> => {
+    return await apiRequest<BackendExpense>(`/api/expenses/${id}/approve`, {
+      method: "PATCH",
+      body: JSON.stringify({ comment: comment || "" }),
+    });
+  },
+  reject: async (id: number | string, comment?: string): Promise<BackendExpense> => {
+    return await apiRequest<BackendExpense>(`/api/expenses/${id}/reject`, {
+      method: "PATCH",
+      body: JSON.stringify({ comment: comment || "" }),
+    });
+  },
+  reimburse: async (id: number | string): Promise<BackendExpense> => {
+    return await apiRequest<BackendExpense>(`/api/expenses/${id}/reimburse`, {
+      method: "PATCH",
+    });
+  },
+  delete: async (id: number | string): Promise<void> => {
+    await apiRequest(`/api/expenses/${id}`, { method: "DELETE" });
+  },
+};
+
+export const companyApi = {
+  getCurrent: async (): Promise<{ id: number; name: string; code: string; domain?: string; active: boolean }> => {
+    return await apiRequest("/api/companies/current");
+  },
+  register: async (data: {
+    name: string;
+    code: string;
+    domain?: string;
+    adminUsername: string;
+    adminPassword: string;
+    adminEmail?: string;
+  }): Promise<{ id: number; name: string; code: string; domain?: string; active: boolean }> => {
+    return await apiRequest("/api/companies/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+      skipAuth: true,
+    });
+  },
+};
+
 

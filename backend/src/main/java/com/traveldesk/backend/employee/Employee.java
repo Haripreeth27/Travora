@@ -1,5 +1,6 @@
 package com.traveldesk.backend.employee;
 
+import com.traveldesk.backend.company.Company;
 import jakarta.persistence.*;
 
 @Entity
@@ -9,6 +10,10 @@ public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @Column(nullable = false, unique = true)
     private String employeeId;
@@ -22,6 +27,18 @@ public class Employee {
 
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 
     public String getEmployeeId() {

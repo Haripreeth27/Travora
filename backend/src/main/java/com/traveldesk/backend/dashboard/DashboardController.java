@@ -62,7 +62,11 @@ public class DashboardController {
                 requests = List.of();
             }
         } else {
-            requests = travelRequestRepository.findAll();
+            if (currentUserOpt.isPresent() && currentUserOpt.get().getRole() != Role.PLATFORM_ADMIN && currentUserOpt.get().getCompany() != null) {
+                requests = travelRequestRepository.findByCompanyId(currentUserOpt.get().getCompany().getId());
+            } else {
+                requests = travelRequestRepository.findAll();
+            }
         }
 
         long pending = requests.stream()

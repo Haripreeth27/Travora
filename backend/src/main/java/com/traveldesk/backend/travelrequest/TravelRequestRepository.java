@@ -19,4 +19,24 @@ public interface TravelRequestRepository
             Long employeeId,
             TravelRequestStatus status
     );
+
+    List<TravelRequest> findByCompanyId(
+            Long companyId
+    );
+
+    List<TravelRequest> findByCompanyIdAndStatus(
+            Long companyId,
+            TravelRequestStatus status
+    );
+
+    List<TravelRequest> findByCompanyIdAndEmployeeId(
+            Long companyId,
+            Long employeeId
+    );
+
+    List<TravelRequest> findByCompanyIdAndEmployeeIdAndStatus(
+            Long companyId,
+            Long employeeId,
+            TravelRequestStatus status
+    );
 }

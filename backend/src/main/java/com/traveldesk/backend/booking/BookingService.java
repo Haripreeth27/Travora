@@ -45,12 +45,18 @@ public class BookingService {
 
         if (currentUser.getRole() == Role.EMPLOYEE) {
             Employee employee = getEmployeeForUser(currentUser);
-            // Only return bookings whose travel request belongs to this employee
-            return bookingRepository.findAll().stream()
+            List<Booking> list = (currentUser.getCompany() != null)
+                    ? bookingRepository.findByCompanyId(currentUser.getCompany().getId())
+                    : bookingRepository.findAll();
+            return list.stream()
                     .filter(b -> b.getTravelRequest() != null
                             && b.getTravelRequest().getEmployee() != null
                             && b.getTravelRequest().getEmployee().getId().equals(employee.getId()))
                     .toList();
+        }
+
+        if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null) {
+            return bookingRepository.findByCompanyId(currentUser.getCompany().getId());
         }
 
         return bookingRepository.findAll();
@@ -58,9 +64,15 @@ public class BookingService {
 
     public Booking getBookingById(Long id) {
         Booking booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
 
         User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && booking.getCompany() != null) {
+            if (!booking.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found");
+            }
+        }
+
         if (currentUser.getRole() == Role.EMPLOYEE) {
             Employee employee = getEmployeeForUser(currentUser);
             if (booking.getTravelRequest() == null
@@ -78,10 +90,17 @@ public class BookingService {
 
     public List<Booking> getBookingsByTravelRequest(Long travelRequestId) {
         User currentUser = getCurrentUser();
+        TravelRequest travelRequest = travelRequestRepository.findById(travelRequestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Travel request not found"));
+
+        if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && travelRequest.getCompany() != null) {
+            if (!travelRequest.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Travel request not found");
+            }
+        }
+
         if (currentUser.getRole() == Role.EMPLOYEE) {
             Employee employee = getEmployeeForUser(currentUser);
-            TravelRequest travelRequest = travelRequestRepository.findById(travelRequestId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Travel request not found"));
             if (travelRequest.getEmployee() == null
                     || !travelRequest.getEmployee().getId().equals(employee.getId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access bookings for your own travel requests");
@@ -108,11 +127,14 @@ public class BookingService {
     }
 
     public List<Booking> getBookingsByCancelledStatus(boolean cancelled) {
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null) {
+            return bookingRepository.findByCompanyIdAndCancelled(currentUser.getCompany().getId(), cancelled);
+        }
         return bookingRepository.findByCancelled(cancelled);
     }
 
     public Booking createBooking(Booking booking) {
-
         if (booking.getTravelRequest() == null
                 || booking.getTravelRequest().getId() == null) {
             throw new IllegalArgumentException(
@@ -126,6 +148,13 @@ public class BookingService {
                         "Travel request not found"
                 ));
 
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && travelRequest.getCompany() != null) {
+            if (!travelRequest.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                throw new IllegalArgumentException("Travel request not found");
+            }
+        }
+
         if (travelRequest.getStatus() != null
                 && !travelRequest.getStatus().name().equals("APPROVED")) {
             throw new IllegalArgumentException(
@@ -134,6 +163,12 @@ public class BookingService {
         }
 
         booking.setTravelRequest(travelRequest);
+
+        if (currentUser.getCompany() != null) {
+            booking.setCompany(currentUser.getCompany());
+        } else if (travelRequest.getCompany() != null) {
+            booking.setCompany(travelRequest.getCompany());
+        }
 
         if (booking.getCost() == null) {
             booking.setCost(BigDecimal.ZERO);
