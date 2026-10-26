@@ -11,4 +11,8 @@ public interface BulkBookingRepository extends JpaRepository<BulkBooking, Long> 
     List<BulkBooking> findByGroupReference(String groupReference);
 
     List<BulkBooking> findAllByOrderByLoggedAtDesc();
+
+    List<BulkBooking> findByCompanyIdOrderByLoggedAtDesc(Long companyId);
+
+    List<BulkBooking> findByCompanyIdAndStatus(Long companyId, String status);
 }

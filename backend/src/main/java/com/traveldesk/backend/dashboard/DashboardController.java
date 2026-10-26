@@ -45,16 +45,26 @@ public class DashboardController {
     @GetMapping("/summary")
     public Map<String, Object> getDashboardSummary() {
         Optional<User> currentUserOpt = getCurrentUserOptional();
+        if (currentUserOpt.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "User not authenticated"
+            );
+        }
+        User currentUser = currentUserOpt.get();
 
         List<TravelRequest> requests;
         List<Booking> bookings = bookingService.getAllBookings();
 
-        if (currentUserOpt.isPresent() && currentUserOpt.get().getRole() == Role.EMPLOYEE) {
-            User user = currentUserOpt.get();
-            if (user.getEmployeeId() != null) {
-                Optional<Employee> empOpt = employeeRepository.findByEmployeeId(user.getEmployeeId());
+        if (currentUser.getRole() == Role.EMPLOYEE) {
+            if (currentUser.getEmployeeId() != null) {
+                Optional<Employee> empOpt = currentUser.getCompany() != null
+                        ? employeeRepository.findByCompanyIdAndEmployeeId(currentUser.getCompany().getId(), currentUser.getEmployeeId())
+                        : employeeRepository.findByEmployeeId(currentUser.getEmployeeId());
                 if (empOpt.isPresent()) {
-                    requests = travelRequestRepository.findByEmployeeId(empOpt.get().getId());
+                    requests = currentUser.getCompany() != null
+                            ? travelRequestRepository.findByCompanyIdAndEmployeeId(currentUser.getCompany().getId(), empOpt.get().getId())
+                            : travelRequestRepository.findByEmployeeId(empOpt.get().getId());
                 } else {
                     requests = List.of();
                 }
@@ -62,8 +72,8 @@ public class DashboardController {
                 requests = List.of();
             }
         } else {
-            if (currentUserOpt.isPresent() && currentUserOpt.get().getRole() != Role.PLATFORM_ADMIN && currentUserOpt.get().getCompany() != null) {
-                requests = travelRequestRepository.findByCompanyId(currentUserOpt.get().getCompany().getId());
+            if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null) {
+                requests = travelRequestRepository.findByCompanyId(currentUser.getCompany().getId());
             } else {
                 requests = travelRequestRepository.findAll();
             }

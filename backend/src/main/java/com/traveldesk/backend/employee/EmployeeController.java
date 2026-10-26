@@ -60,6 +60,11 @@ public class EmployeeController {
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
                 }
             }
+            if (user.getRole() == Role.EMPLOYEE) {
+                if (user.getEmployeeId() == null || !employee.getEmployeeId().equals(user.getEmployeeId())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own employee profile");
+                }
+            }
         }
 
         return employee;
@@ -72,6 +77,11 @@ public class EmployeeController {
         Optional<User> userOpt = getCurrentUserOptional();
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (user.getRole() == Role.EMPLOYEE) {
+                if (user.getEmployeeId() == null || !employeeId.equals(user.getEmployeeId())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own employee profile");
+                }
+            }
             if (user.getRole() != Role.PLATFORM_ADMIN && user.getCompany() != null) {
                 return employeeRepository.findByCompanyIdAndEmployeeId(user.getCompany().getId(), employeeId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
@@ -88,7 +98,9 @@ public class EmployeeController {
         Optional<User> userOpt = getCurrentUserOptional();
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-            if (employee.getCompany() == null && user.getCompany() != null) {
+            if (user.getRole() != Role.PLATFORM_ADMIN && user.getCompany() != null) {
+                employee.setCompany(user.getCompany());
+            } else if (employee.getCompany() == null && user.getCompany() != null) {
                 employee.setCompany(user.getCompany());
             }
         }

@@ -26,6 +26,9 @@ class AuthSecurityTest {
     private UserRepository userRepository;
 
     @Autowired
+    private com.traveldesk.backend.notification.NotificationRepository notificationRepository;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -35,6 +38,7 @@ class AuthSecurityTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         userRepository.deleteAll();
     }
 

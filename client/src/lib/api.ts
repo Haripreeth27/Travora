@@ -382,6 +382,14 @@ export function clearAuth({ notify = false }: { notify?: boolean } = {}) {
   window.localStorage.removeItem("trapple_user");
   window.localStorage.removeItem("travora_token");
   window.localStorage.removeItem("travora_user");
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key && (key.startsWith("trapple_expenses_") || key.startsWith("travora_expenses_"))) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {}
   if (notify) window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
 }
 
@@ -2008,5 +2016,106 @@ export const companyApi = {
     });
   },
 };
+
+export type ManagedUser = {
+  id: number;
+  username: string;
+  name: string;
+  role: Role;
+  active: boolean;
+  status: "ACTIVE" | "INACTIVE" | "PENDING_ACTIVATION";
+  employeeId?: string | null;
+  department?: string | null;
+  designation?: string | null;
+  companyId?: number | null;
+  companyCode?: string | null;
+  companyName?: string | null;
+  createdAt?: string | null;
+  hasPendingActivation?: boolean;
+};
+
+export type CreateManagedUserPayload = {
+  name: string;
+  email: string;
+  employeeId?: string;
+  department?: string;
+  designation?: string;
+  role: Role;
+  active?: boolean;
+  managerName?: string;
+};
+
+export type UpdateManagedUserPayload = {
+  name?: string;
+  department?: string;
+  designation?: string;
+  employeeId?: string;
+  role?: Role;
+  active?: boolean;
+  managerName?: string;
+};
+
+export type CreatedUserResult = ManagedUser & {
+  activationToken?: string;
+  activationUrl?: string;
+};
+
+export type TokenVerificationResult = {
+  valid: boolean;
+  username?: string;
+  name?: string;
+  companyName?: string;
+  message?: string;
+};
+
+export const usersApi = {
+  list: async (params?: { search?: string; role?: string; status?: string }): Promise<ManagedUser[]> => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.role && params.role !== "ALL") q.set("role", params.role);
+    if (params?.status && params.status !== "ALL") q.set("status", params.status);
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return await apiRequest<ManagedUser[]>(`/api/users${qs}`);
+  },
+  get: async (id: number | string): Promise<ManagedUser> => {
+    return await apiRequest<ManagedUser>(`/api/users/${id}`);
+  },
+  create: async (payload: CreateManagedUserPayload): Promise<CreatedUserResult> => {
+    return await apiRequest<CreatedUserResult>("/api/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  update: async (id: number | string, payload: UpdateManagedUserPayload): Promise<ManagedUser> => {
+    return await apiRequest<ManagedUser>(`/api/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStatus: async (id: number | string, active: boolean): Promise<ManagedUser> => {
+    return await apiRequest<ManagedUser>(`/api/users/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ active }),
+    });
+  },
+  resendActivation: async (id: number | string): Promise<CreatedUserResult> => {
+    return await apiRequest<CreatedUserResult>(`/api/users/${id}/resend-activation`, {
+      method: "POST",
+    });
+  },
+  verifyToken: async (token: string): Promise<TokenVerificationResult> => {
+    return await apiRequest<TokenVerificationResult>(`/api/auth/activate/verify?token=${encodeURIComponent(token)}`, {
+      skipAuth: true,
+    });
+  },
+  activate: async (token: string, password: string): Promise<{ message: string }> => {
+    return await apiRequest<{ message: string }>("/api/auth/activate", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+      skipAuth: true,
+    });
+  },
+};
+
 
 

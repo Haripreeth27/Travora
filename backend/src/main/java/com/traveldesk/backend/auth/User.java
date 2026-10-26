@@ -32,6 +32,15 @@ public class User {
 
     private String employeeId;
 
+    @Column(name = "created_at")
+    private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
+
+    @Column(name = "activation_token_hash")
+    private String activationTokenHash;
+
+    @Column(name = "activation_token_expires_at")
+    private java.time.LocalDateTime activationTokenExpiresAt;
+
     public Long getId() {
         return id;
     }
@@ -86,5 +95,29 @@ public class User {
 
     public void setEmployeeId(String employeeId) {
         this.employeeId = employeeId;
+    }
+
+    public java.time.LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(java.time.LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getActivationTokenHash() {
+        return activationTokenHash;
+    }
+
+    public void setActivationTokenHash(String activationTokenHash) {
+        this.activationTokenHash = activationTokenHash;
+    }
+
+    public java.time.LocalDateTime getActivationTokenExpiresAt() {
+        return activationTokenExpiresAt;
+    }
+
+    public void setActivationTokenExpiresAt(java.time.LocalDateTime activationTokenExpiresAt) {
+        this.activationTokenExpiresAt = activationTokenExpiresAt;
     }
 }

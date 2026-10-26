@@ -44,7 +44,7 @@ public class TravelRequestController {
     }
 
     @PatchMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'APPROVER')")
     public TravelRequest approveTravelRequest(
             @PathVariable Long id,
             @RequestBody ApprovalDecision decision
@@ -56,7 +56,7 @@ public class TravelRequestController {
     }
 
     @PatchMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'APPROVER')")
     public TravelRequest rejectTravelRequest(
             @PathVariable Long id,
             @RequestBody ApprovalDecision decision
@@ -68,7 +68,7 @@ public class TravelRequestController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TRAVEL_DESK', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'EMPLOYEE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTravelRequest(
             @PathVariable Long id
@@ -77,7 +77,7 @@ public class TravelRequestController {
     }
 
     @DeleteMapping("/all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAllTravelRequests() {
         travelRequestService.deleteAllTravelRequests();

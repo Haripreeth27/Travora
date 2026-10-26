@@ -68,6 +68,13 @@ public class Expense {
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reimbursed_by_id")
+    private User reimbursedBy;
+
+    @Column(name = "reimbursed_at")
+    private LocalDateTime reimbursedAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -197,6 +204,22 @@ public class Expense {
 
     public void setApprovedAt(LocalDateTime approvedAt) {
         this.approvedAt = approvedAt;
+    }
+
+    public User getReimbursedBy() {
+        return reimbursedBy;
+    }
+
+    public void setReimbursedBy(User reimbursedBy) {
+        this.reimbursedBy = reimbursedBy;
+    }
+
+    public LocalDateTime getReimbursedAt() {
+        return reimbursedAt;
+    }
+
+    public void setReimbursedAt(LocalDateTime reimbursedAt) {
+        this.reimbursedAt = reimbursedAt;
     }
 
     public LocalDateTime getCreatedAt() {

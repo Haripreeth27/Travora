@@ -33,6 +33,7 @@ import {
   Sun,
   TicketCheck,
   UserRound,
+  UserPlus,
   UsersRound,
   WalletCards,
   Eye,
@@ -68,6 +69,8 @@ import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
 import { Profile } from "./pages/Profile";
+import { UserManagement } from "./pages/UserManagement";
+import { ActivateAccount } from "./pages/ActivateAccount";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
 import { ActivityTimeline } from "./components/ActivityTimeline";
@@ -241,6 +244,8 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/admin/bookings": { eyebrow: "Administration", title: "Bookings", description: "Visibility into ticketing activity and travel spend." },
   "/admin/reports": { eyebrow: "Administration", title: "Organization reports", description: "Travel patterns to support better planning and policy." },
   "/approver/reports": { eyebrow: "Approver workspace", title: "Management Reports", description: "Supervised employee travel records, approval logs, and team booking costs." },
+  "/travel-desk/users": { eyebrow: "Administration", title: "User Management", description: "Provision employee accounts, assign role permissions, and control tenant user access." },
+  "/admin/users": { eyebrow: "Administration", title: "User Management", description: "Provision employee accounts, assign role permissions, and control tenant user access." },
   "/travel-desk/reports": { eyebrow: "Travel desk", title: "Operations Reports", description: "Ticketing status, vendor provider costs, and booking manifest extraction." },
 };
 
@@ -295,6 +300,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
         { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={16} /> },
         { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={16} /> },
         { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={16} /> },
+        { label: "User Management", href: "/travel-desk/users", icon: <UserPlus size={16} /> },
         { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={16} /> },
       ],
     },
@@ -313,6 +319,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
         { label: "Travel requests", href: "/admin/requests", icon: <FileText size={16} /> },
         { label: "Bookings", href: "/admin/bookings", icon: <TicketCheck size={16} /> },
         { label: "Employees", href: "/admin/employees", icon: <UsersRound size={16} /> },
+        { label: "User Management", href: "/admin/users", icon: <UserPlus size={16} /> },
       ],
     },
     {
@@ -6600,7 +6607,7 @@ function AdminSettings({ user }: { user: AuthUser }) {
   );
 }
 
-function Admin({ section = "overview", user }: { section?: string; user?: AuthUser }) { if (section === "requests") return <AdminRequests />; if (section === "bookings") return <AdminBookings />; if (section === "reports") return <AdminReports />; if (section === "settings" && user) return <AdminSettings user={user} />; return <AdminOverview section={section} />; }
+function Admin({ section = "overview", user }: { section?: string; user?: AuthUser }) { if (section === "requests") return <AdminRequests />; if (section === "bookings") return <AdminBookings />; if (section === "reports") return <AdminReports />; if (section === "settings" && user) return <AdminSettings user={user} />; if (section === "users" && user) return <UserManagement user={user} />; return <AdminOverview section={section} />; }
 
 function AdminOverview({ section = "overview" }: { section?: string }) {
   const [summary, setSummary] = useState<Record<string, number> | null>(null);
@@ -6865,6 +6872,7 @@ function AppRouter() {
       "/travel-desk",
       "/travel-desk/bookings",
       "/travel-desk/bulk-bookings",
+      "/travel-desk/users",
       "/travel-desk/cancellations",
       "/travel-desk/reports",
       "/employee/reports",
@@ -6874,6 +6882,7 @@ function AppRouter() {
       "/admin/employees",
       "/admin/requests",
       "/admin/bookings",
+      "/admin/users",
       "/admin/reports",
       "/admin/settings",
     ],
@@ -6896,12 +6905,16 @@ function AppRouter() {
   }, [setLocation]);
 
   useEffect(() => {
-    if (!user && location !== "/login") {
+    if (!user && location !== "/login" && !location.startsWith("/activate")) {
       setLocation("/login");
-    } else if (user && location !== "/login" && !allowed) {
+    } else if (user && location !== "/login" && !location.startsWith("/activate") && !allowed) {
       setLocation(roleRoots[user.role]);
     }
   }, [user, location, allowed, setLocation]);
+
+  if (location === "/activate" || location.startsWith("/activate")) {
+    return <ActivateAccount />;
+  }
 
   if (location === "/login") {
     return (
@@ -6917,7 +6930,8 @@ function AppRouter() {
   if (!allowed) return null;
 
   let page: ReactNode;
-  if (path === "/employee") page = <Dashboard user={user} />;
+  if (path === "/travel-desk/users" || path === "/admin/users") page = <UserManagement user={user} />;
+  else if (path === "/employee") page = <Dashboard user={user} />;
   else if (path === "/employee/plan-trip") page = <PlanTrip />;
   else if (path === "/employee/journeys") page = <Journeys />;
   else if (path === "/employee/calendar") page = <TravelCalendarPage />;

@@ -55,7 +55,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .findByUsername(username)
                 .orElse(null);
 
-        if (user != null && user.isActive()) {
+        boolean isCompanyActive = user != null && (user.getCompany() == null || user.getCompany().isActive());
+
+        if (user != null && user.isActive() && isCompanyActive) {
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

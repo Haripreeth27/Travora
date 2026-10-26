@@ -1,6 +1,7 @@
 package com.traveldesk.backend.notification;
 
 import com.traveldesk.backend.auth.User;
+import com.traveldesk.backend.company.Company;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -8,10 +9,12 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "notifications", indexes = {
         @Index(name = "idx_notification_recipient_created", columnList = "recipient_id, createdAt"),
-        @Index(name = "idx_notification_recipient_read", columnList = "recipient_id, read")
+        @Index(name = "idx_notification_recipient_read", columnList = "recipient_id, read"),
+        @Index(name = "idx_notifications_company_id", columnList = "company_id")
 })
 public class Notification {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "company_id") private Company company;
     @ManyToOne(optional = false, fetch = FetchType.LAZY) @JoinColumn(name = "recipient_id", nullable = false) private User recipient;
     @Column(nullable = false) private String title;
     @Column(nullable = false, length = 1000) private String message;
@@ -21,6 +24,8 @@ public class Notification {
     @Column(name = "read", nullable = false) private boolean read = false;
     @Column(nullable = false) private LocalDateTime createdAt = LocalDateTime.now();
     public Long getId() { return id; }
+    public Company getCompany() { return company; }
+    public void setCompany(Company company) { this.company = company; }
     @JsonIgnore public User getRecipient() { return recipient; }
     public void setRecipient(User recipient) { this.recipient = recipient; }
     public String getTitle() { return title; }

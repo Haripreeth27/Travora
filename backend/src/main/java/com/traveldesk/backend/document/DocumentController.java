@@ -55,7 +55,7 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{filename:.+}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteDocument(@PathVariable String filename) {
         storageService.delete(filename);

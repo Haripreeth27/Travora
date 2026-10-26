@@ -204,6 +204,18 @@ public class BookingService {
                             "Travel request not found"
                     ));
 
+            User currentUser = getCurrentUser();
+            if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && travelRequest.getCompany() != null) {
+                if (!travelRequest.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Travel request not found");
+                }
+            }
+
+            if (existingBooking.getCompany() != null && travelRequest.getCompany() != null
+                    && !existingBooking.getCompany().getId().equals(travelRequest.getCompany().getId())) {
+                throw new IllegalArgumentException("Cross-company entity linking is not permitted");
+            }
+
             if (travelRequest.getStatus() != null
                     && !travelRequest.getStatus().name().equals("APPROVED")) {
                 throw new IllegalArgumentException(

@@ -24,6 +24,8 @@ public record ExpenseResponse(
         String approverName,
         String approvalComment,
         LocalDateTime approvedAt,
+        String reimbursedByName,
+        LocalDateTime reimbursedAt,
         LocalDateTime createdAt
 ) {
     public static ExpenseResponse fromEntity(Expense e) {
@@ -48,6 +50,8 @@ public record ExpenseResponse(
                 e.getApprover() != null ? e.getApprover().getUsername() : null,
                 e.getApprovalComment(),
                 e.getApprovedAt(),
+                e.getReimbursedBy() != null ? e.getReimbursedBy().getUsername() : null,
+                e.getReimbursedAt(),
                 e.getCreatedAt()
         );
     }

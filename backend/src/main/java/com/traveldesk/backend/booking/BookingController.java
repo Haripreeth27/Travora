@@ -18,19 +18,19 @@ public class BookingController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'APPROVER', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'APPROVER', 'TRAVEL_DESK')")
     public ResponseEntity<List<Booking>> getAllBookings() {
         return ResponseEntity.ok(bookingService.getAllBookings());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'APPROVER', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'APPROVER', 'TRAVEL_DESK')")
     public ResponseEntity<Booking> getBookingById(@PathVariable Long id) {
         return ResponseEntity.ok(bookingService.getBookingById(id));
     }
 
     @GetMapping("/travel-request/{travelRequestId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'APPROVER', 'TRAVEL_DESK', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'APPROVER', 'TRAVEL_DESK', 'EMPLOYEE')")
     public ResponseEntity<List<Booking>> getBookingsByTravelRequest(
             @PathVariable Long travelRequestId) {
         return ResponseEntity.ok(
@@ -39,7 +39,7 @@ public class BookingController {
     }
 
     @GetMapping("/cancelled/{cancelled}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'APPROVER', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'APPROVER', 'TRAVEL_DESK')")
     public ResponseEntity<List<Booking>> getBookingsByCancelledStatus(
             @PathVariable boolean cancelled) {
         return ResponseEntity.ok(
@@ -48,13 +48,13 @@ public class BookingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK')")
     public ResponseEntity<Booking> createBooking(@RequestBody Booking booking) {
         return ResponseEntity.ok(bookingService.createBooking(booking));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK')")
     public ResponseEntity<Booking> updateBooking(
             @PathVariable Long id,
             @RequestBody Booking booking) {
@@ -64,7 +64,7 @@ public class BookingController {
     }
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK')")
     public ResponseEntity<Booking> cancelBooking(
             @PathVariable Long id,
             @RequestParam String reason,
@@ -80,7 +80,7 @@ public class BookingController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')")
     public ResponseEntity<Void> deleteBooking(@PathVariable Long id) {
         bookingService.deleteBooking(id);
         return ResponseEntity.noContent().build();

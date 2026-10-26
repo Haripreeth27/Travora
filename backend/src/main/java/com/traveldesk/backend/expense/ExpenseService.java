@@ -64,6 +64,11 @@ public class ExpenseService {
             }
         }
 
+        // Validate amount
+        if (request.getAmount() == null || request.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Expense amount must be greater than zero");
+        }
+
         TravelRequest travelRequest = null;
         if (request.getTravelRequestId() != null) {
             travelRequest = travelRequestRepository.findById(request.getTravelRequestId())
@@ -72,6 +77,12 @@ public class ExpenseService {
             if (currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && travelRequest.getCompany() != null) {
                 if (!travelRequest.getCompany().getId().equals(currentUser.getCompany().getId())) {
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Travel request not found");
+                }
+            }
+
+            if (currentUser.getRole() == Role.EMPLOYEE) {
+                if (travelRequest.getEmployee() == null || !travelRequest.getEmployee().getId().equals(employee.getId())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot link an expense to another employee's travel request");
                 }
             }
         }
@@ -180,6 +191,8 @@ public class ExpenseService {
         }
 
         expense.setStatus(ExpenseStatus.REIMBURSED);
+        expense.setReimbursedBy(currentUser);
+        expense.setReimbursedAt(LocalDateTime.now());
         Expense saved = expenseRepository.save(expense);
         return ExpenseResponse.fromEntity(saved);
     }

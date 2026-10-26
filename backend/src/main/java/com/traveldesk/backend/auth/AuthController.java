@@ -1,5 +1,7 @@
 package com.traveldesk.backend.auth;
 
+import com.traveldesk.backend.employee.Employee;
+import com.traveldesk.backend.employee.EmployeeRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
@@ -10,22 +12,47 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.traveldesk.backend.user.ActivateAccountRequest;
+import com.traveldesk.backend.user.TokenVerificationResponse;
+import com.traveldesk.backend.user.UserService;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final UserService userService;
 
     public AuthController(
             UserRepository userRepository,
+            EmployeeRepository employeeRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            UserService userService
     ) {
         this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.userService = userService;
+    }
+
+    // =========================
+    // ACCOUNT ACTIVATION (PUBLIC)
+    // =========================
+
+    @GetMapping("/activate/verify")
+    public TokenVerificationResponse verifyActivationToken(@RequestParam String token) {
+        return userService.verifyActivationToken(token);
+    }
+
+    @PostMapping("/activate")
+    public java.util.Map<String, String> activateAccount(@Valid @RequestBody ActivateAccountRequest request) {
+        userService.activateAccount(request);
+        return java.util.Map.of("message", "Account successfully activated. You can now log in with your credentials.");
     }
 
     // =========================
@@ -101,7 +128,13 @@ public class AuthController {
         user.setRole(roleToAssign);
         user.setActive(true);
         if (request.getEmployeeId() != null && !request.getEmployeeId().trim().isEmpty()) {
-            user.setEmployeeId(request.getEmployeeId().trim());
+            String empId = request.getEmployeeId().trim();
+            user.setEmployeeId(empId);
+            employeeRepository.findByEmployeeId(empId).ifPresent(emp -> {
+                if (emp.getCompany() != null) {
+                    user.setCompany(emp.getCompany());
+                }
+            });
         }
 
         User saved = userRepository.save(user);
@@ -111,7 +144,10 @@ public class AuthController {
                 saved.getUsername(),
                 saved.getRole(),
                 saved.getEmployeeId(),
-                saved.isActive()
+                saved.isActive(),
+                saved.getCompany() != null ? saved.getCompany().getId() : null,
+                saved.getCompany() != null ? saved.getCompany().getCode() : null,
+                saved.getCompany() != null ? saved.getCompany().getName() : null
         );
     }
 
@@ -120,7 +156,7 @@ public class AuthController {
     // =========================
 
     @PostMapping("/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public UserSummaryResponse createUser(@Valid @RequestBody RegisterRequest request) {
         String username = request.getUsername() != null ? request.getUsername().trim() : "";
@@ -134,13 +170,39 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
 
+        User currentUser = getAuthenticatedUser();
+        Role requestedRole = request.getRole() != null ? request.getRole() : Role.EMPLOYEE;
+
+        // Prevent unauthorized privilege escalation
+        if (requestedRole == Role.PLATFORM_ADMIN) {
+            if (currentUser == null || currentUser.getRole() != Role.PLATFORM_ADMIN) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only platform administrators can create platform administrators");
+            }
+        }
+
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRole(request.getRole() != null ? request.getRole() : Role.EMPLOYEE);
+        user.setRole(requestedRole);
         user.setActive(true);
+
+        if (currentUser != null && currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null) {
+            user.setCompany(currentUser.getCompany());
+        }
+
         if (request.getEmployeeId() != null && !request.getEmployeeId().trim().isEmpty()) {
-            user.setEmployeeId(request.getEmployeeId().trim());
+            String empId = request.getEmployeeId().trim();
+            user.setEmployeeId(empId);
+            employeeRepository.findByEmployeeId(empId).ifPresent(emp -> {
+                if (currentUser != null && currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && emp.getCompany() != null) {
+                    if (!emp.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot assign employee from another company");
+                    }
+                }
+                if (user.getCompany() == null && emp.getCompany() != null) {
+                    user.setCompany(emp.getCompany());
+                }
+            });
         }
 
         User saved = userRepository.save(user);
@@ -150,7 +212,10 @@ public class AuthController {
                 saved.getUsername(),
                 saved.getRole(),
                 saved.getEmployeeId(),
-                saved.isActive()
+                saved.isActive(),
+                saved.getCompany() != null ? saved.getCompany().getId() : null,
+                saved.getCompany() != null ? saved.getCompany().getCode() : null,
+                saved.getCompany() != null ? saved.getCompany().getName() : null
         );
     }
 
@@ -193,6 +258,13 @@ public class AuthController {
             );
         }
 
+        if (user.getCompany() != null && !user.getCompany().isActive()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Company account is inactive"
+            );
+        }
+
         String token = jwtService.generateToken(user);
 
         return new LoginResponse(
@@ -209,11 +281,10 @@ public class AuthController {
 
     // =========================
     // ASSIGN EMPLOYEE TO USER
-    // ADMIN ONLY
     // =========================
 
     @PutMapping("/users/{userId}/employee")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')")
     public UserSummaryResponse assignEmployee(
             @PathVariable Long userId,
             @RequestBody EmployeeAssignmentRequest request
@@ -227,7 +298,33 @@ public class AuthController {
                         )
                 );
 
-        user.setEmployeeId(request.getEmployeeId());
+        User currentUser = getAuthenticatedUser();
+        if (currentUser != null && currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null) {
+            if (user.getCompany() != null && !user.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Cannot modify users of another company"
+                );
+            }
+        }
+
+        if (request.getEmployeeId() != null && !request.getEmployeeId().trim().isEmpty()) {
+            String empId = request.getEmployeeId().trim();
+            user.setEmployeeId(empId);
+            employeeRepository.findByEmployeeId(empId).ifPresent(emp -> {
+                if (currentUser != null && currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null && emp.getCompany() != null) {
+                    if (!emp.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot assign employee from another company");
+                    }
+                }
+                if (user.getCompany() == null && emp.getCompany() != null) {
+                    user.setCompany(emp.getCompany());
+                }
+            });
+        } else {
+            user.setEmployeeId(null);
+        }
+
         User saved = userRepository.save(user);
 
         return new UserSummaryResponse(
@@ -235,17 +332,19 @@ public class AuthController {
                 saved.getUsername(),
                 saved.getRole(),
                 saved.getEmployeeId(),
-                saved.isActive()
+                saved.isActive(),
+                saved.getCompany() != null ? saved.getCompany().getId() : null,
+                saved.getCompany() != null ? saved.getCompany().getCode() : null,
+                saved.getCompany() != null ? saved.getCompany().getName() : null
         );
     }
 
     // =========================
     // RESET PASSWORD
-    // ADMIN ONLY
     // =========================
 
     @PutMapping("/reset-password/{username}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')")
     public String resetPassword(
             @PathVariable String username,
             @RequestBody PasswordResetRequest request
@@ -259,6 +358,16 @@ public class AuthController {
                         )
                 );
 
+        User currentUser = getAuthenticatedUser();
+        if (currentUser != null && currentUser.getRole() != Role.PLATFORM_ADMIN && currentUser.getCompany() != null) {
+            if (user.getCompany() != null && !user.getCompany().getId().equals(currentUser.getCompany().getId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Cannot reset password for users of another company"
+                );
+            }
+        }
+
         user.setPassword(
                 passwordEncoder.encode(
                         request.getNewPassword()
@@ -268,6 +377,14 @@ public class AuthController {
         userRepository.save(user);
 
         return "Password reset successfully";
+    }
+
+    private User getAuthenticatedUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            return null;
+        }
+        return userRepository.findByUsername(auth.getName()).orElse(null);
     }
 
     // =========================

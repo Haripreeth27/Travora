@@ -90,12 +90,13 @@ function backendToExpense(b: BackendExpense): Expense {
 }
 
 export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?: AuthUser | null }) {
+  const companyPrefix = user?.companyId ? `c${user.companyId}` : "nocompany";
   const userKey = user?.employeeId || (user?.id ? String(user.id) : "guest");
-  const storageKey = `trapple_expenses_${userKey}`;
+  const storageKey = `trapple_expenses_${companyPrefix}_${userKey}`;
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     try {
-      const saved = localStorage.getItem(storageKey) || localStorage.getItem(`travora_expenses_${userKey}`);
+      const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
     } catch {}
     return [];
@@ -137,8 +138,8 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
         const mapped = data.map(backendToExpense);
         setExpenses(mapped);
       }
-    } catch {
-      // Backend not reached or offline; keep cached state
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync expenses with server.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +147,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
 
   useEffect(() => {
     fetchExpenses();
-  }, [userKey]);
+  }, [userKey, companyPrefix]);
 
   useEffect(() => {
     try {
@@ -202,35 +203,19 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
       const newExp = backendToExpense(created);
       setExpenses((prev) => [newExp, ...prev.filter((x) => x.id !== newExp.id)]);
       toast.success("Expense claim submitted to server.");
+      setIsCreateOpen(false);
+      setMerchant("");
+      setAmount("");
+      setNotes("");
+      setReceiptFile(null);
     } catch (err: any) {
-      // Fallback local save if backend offline
-      const newExpense: Expense = {
-        id: `EXP-${1000 + expenses.length + 1}`,
-        destination: destination || "General Business Travel",
-        category,
-        amount: Number(amount),
-        currency,
-        date: expenseDate,
-        merchant,
-        status: "Submitted",
-        receiptName: receiptFile || "attached_receipt.pdf",
-        notes,
-      };
-      setExpenses((prev) => [newExpense, ...prev]);
-      toast.info("Claim saved locally (backend sync pending).");
+      toast.error(err.message || "Failed to submit expense claim to server.");
     }
-
-    setIsCreateOpen(false);
-    setMerchant("");
-    setAmount("");
-    setNotes("");
-    setReceiptFile(null);
   };
 
   const handleApprove = async (item: Expense) => {
     if (!item.backendId) {
-      setExpenses((prev) => prev.map((e) => (e.id === item.id ? { ...e, status: "Approved" } : e)));
-      toast.success(`Expense ${item.id} approved.`);
+      toast.error("Cannot approve an unpersisted local expense record.");
       return;
     }
     try {
@@ -244,12 +229,11 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
   };
 
   const handleReject = async (item: Expense) => {
-    const comment = prompt("Please provide a reason for rejection:") || "Rejected by reviewer";
     if (!item.backendId) {
-      setExpenses((prev) => prev.map((e) => (e.id === item.id ? { ...e, status: "Rejected" } : e)));
-      toast.info(`Expense ${item.id} rejected.`);
+      toast.error("Cannot reject an unpersisted local expense record.");
       return;
     }
+    const comment = prompt("Please provide a reason for rejection:") || "Rejected by reviewer";
     try {
       const res = await expenseApi.reject(item.backendId, comment);
       const updated = backendToExpense(res);
@@ -262,8 +246,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
 
   const handleReimburse = async (item: Expense) => {
     if (!item.backendId) {
-      setExpenses((prev) => prev.map((e) => (e.id === item.id ? { ...e, status: "Reimbursed" } : e)));
-      toast.success(`Expense ${item.id} marked as reimbursed.`);
+      toast.error("Cannot reimburse an unpersisted local expense record.");
       return;
     }
     try {
