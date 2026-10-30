@@ -388,8 +388,8 @@ public class UserService {
 
             if (existingInCompany.isPresent()) {
                 Employee employee = existingInCompany.get();
-                // Verify not already associated with another user
-                Optional<User> linkedUser = userRepository.findByEmployeeId(empId);
+                // Verify not already associated with another user in the company
+                Optional<User> linkedUser = userRepository.findByCompanyIdAndEmployeeId(company.getId(), empId);
                 if (linkedUser.isPresent()) {
                     throw new ResponseStatusException(
                             HttpStatus.CONFLICT,
@@ -400,6 +400,9 @@ public class UserService {
                 if (request.getName() != null && !request.getName().trim().isEmpty()) {
                     employee.setName(request.getName().trim());
                 }
+                if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+                    employee.setEmail(request.getEmail().trim().toLowerCase());
+                }
                 if (request.getDepartment() != null) {
                     employee.setDepartment(request.getDepartment().trim());
                 }
@@ -409,21 +412,15 @@ public class UserService {
                 return employeeRepository.save(employee);
             }
 
-            // Check if employeeId exists globally in another company
-            if (employeeRepository.existsByEmployeeId(empId)) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Employee ID '" + empId + "' is already in use by another organization"
-                );
-            }
-
             // Create new Employee record with specified ID
             Employee newEmp = new Employee();
             newEmp.setCompany(company);
             newEmp.setEmployeeId(empId);
             newEmp.setName(request.getName().trim());
+            newEmp.setEmail(request.getEmail() != null ? request.getEmail().trim().toLowerCase() : null);
             newEmp.setDepartment(request.getDepartment() != null ? request.getDepartment().trim() : null);
             newEmp.setDesignation(request.getDesignation() != null ? request.getDesignation().trim() : null);
+            newEmp.setActive(true);
             return employeeRepository.save(newEmp);
         }
 
@@ -434,14 +431,16 @@ public class UserService {
         do {
             generatedEmpId = companyCode + String.format("%04d", secureRandom.nextInt(10000));
             attempts++;
-        } while (employeeRepository.existsByEmployeeId(generatedEmpId) && attempts < 10);
+        } while (employeeRepository.existsByCompanyIdAndEmployeeId(company.getId(), generatedEmpId) && attempts < 10);
 
         Employee newEmp = new Employee();
         newEmp.setCompany(company);
         newEmp.setEmployeeId(generatedEmpId);
         newEmp.setName(request.getName().trim());
+        newEmp.setEmail(request.getEmail() != null ? request.getEmail().trim().toLowerCase() : null);
         newEmp.setDepartment(request.getDepartment() != null ? request.getDepartment().trim() : null);
         newEmp.setDesignation(request.getDesignation() != null ? request.getDesignation().trim() : null);
+        newEmp.setActive(true);
         return employeeRepository.save(newEmp);
     }
 

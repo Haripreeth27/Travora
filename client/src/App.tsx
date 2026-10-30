@@ -64,13 +64,14 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger } from "./lib/api";
+import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
 import { Profile } from "./pages/Profile";
 import { UserManagement } from "./pages/UserManagement";
 import { ActivateAccount } from "./pages/ActivateAccount";
+import { ExcelImport } from "./pages/ExcelImport";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
 import { ActivityTimeline } from "./components/ActivityTimeline";
@@ -245,6 +246,8 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/admin/reports": { eyebrow: "Administration", title: "Organization reports", description: "Travel patterns to support better planning and policy." },
   "/approver/reports": { eyebrow: "Approver workspace", title: "Management Reports", description: "Supervised employee travel records, approval logs, and team booking costs." },
   "/travel-desk/users": { eyebrow: "Administration", title: "User Management", description: "Provision employee accounts, assign role permissions, and control tenant user access." },
+  "/travel-desk/excel-import": { eyebrow: "Operations", title: "Excel Import & Travel History", description: "Upload spreadsheets, preview records, and manage historical corporate travel." },
+  "/admin/excel-import": { eyebrow: "Administration", title: "Excel Import & Travel History", description: "Upload spreadsheets, preview records, and manage historical corporate travel." },
   "/admin/users": { eyebrow: "Administration", title: "User Management", description: "Provision employee accounts, assign role permissions, and control tenant user access." },
   "/travel-desk/reports": { eyebrow: "Travel desk", title: "Operations Reports", description: "Ticketing status, vendor provider costs, and booking manifest extraction." },
 };
@@ -300,6 +303,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
         { label: "Operations overview", href: "/travel-desk", icon: <LayoutDashboard size={16} /> },
         { label: "Booking queue", href: "/travel-desk/bookings", icon: <TicketCheck size={16} /> },
         { label: "Bulk & Group Travel", href: "/travel-desk/bulk-bookings", icon: <UsersRound size={16} /> },
+        { label: "Excel Import & History", href: "/travel-desk/excel-import", icon: <FileSpreadsheet size={16} /> },
         { label: "User Management", href: "/travel-desk/users", icon: <UserPlus size={16} /> },
         { label: "Cancellations", href: "/travel-desk/cancellations", icon: <XCircle size={16} /> },
       ],
@@ -319,6 +323,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
         { label: "Travel requests", href: "/admin/requests", icon: <FileText size={16} /> },
         { label: "Bookings", href: "/admin/bookings", icon: <TicketCheck size={16} /> },
         { label: "Employees", href: "/admin/employees", icon: <UsersRound size={16} /> },
+        { label: "Excel Import & History", href: "/admin/excel-import", icon: <FileSpreadsheet size={16} /> },
         { label: "User Management", href: "/admin/users", icon: <UserPlus size={16} /> },
       ],
     },
@@ -6158,24 +6163,6 @@ function AdminRequests() {
             >
               <Trash2 size={13} /> Delete all requests
             </button>
-            <button
-              type="button"
-              className="button button-ghost button-small flex items-center gap-1.5"
-              title="Restore sample demo journeys and bookings"
-              onClick={() => setConfirmDialog({
-                title: "Restore demo trips & bookings?",
-                description: "This will restore standard sample travel requests and bookings for testing.",
-                confirmLabel: "Restore demo data",
-                isDanger: false,
-                action: async () => {
-                  await travelRequestsApi.resetDemo();
-                  toast.success("Demo trips and bookings restored.");
-                  await fetchRequests();
-                }
-              })}
-            >
-              <RotateCcw size={13} /> Reset demo
-            </button>
           </div>
         </div>
         {error && <div className="form-error-message"><XCircle size={15} />{error}</div>}
@@ -6252,20 +6239,7 @@ function AdminRequests() {
           <EmptyState
             icon={<FileText size={20} />}
             title={requests.length ? "No matching requests" : "No travel requests in queue"}
-            description={requests.length ? "Try another search or status filter." : "The travel request queue is empty. You can restore demo records using the 'Reset demo' button above or submit new requests."}
-            action={!requests.length ? (
-              <button
-                type="button"
-                className="button button-primary button-small"
-                onClick={async () => {
-                  await travelRequestsApi.resetDemo();
-                  toast.success("Demo trips restored.");
-                  await fetchRequests();
-                }}
-              >
-                <RotateCcw size={14} /> Restore demo trips
-              </button>
-            ) : undefined}
+            description={requests.length ? "Try another search or status filter." : "The travel request queue is empty. Submit a new travel request to populate the queue."}
           />
         )}
       </div>
@@ -6549,29 +6523,6 @@ function AdminSettings({ user }: { user: AuthUser }) {
                 <Trash2 size={13} /> Delete all data
               </button>
             </div>
-
-            <div className="settings-row">
-              <div>
-                <strong>Restore default demo data</strong>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--ink-muted)" }}>Re-populates standard sample requests and bookings for testing.</p>
-              </div>
-              <button
-                type="button"
-                className="button button-ghost button-small flex items-center gap-1.5"
-                onClick={() => setConfirmDialog({
-                  title: "Restore demo trips & bookings?",
-                  description: "This will re-populate default sample journeys and bookings.",
-                  confirmLabel: "Restore demo",
-                  isDanger: false,
-                  action: async () => {
-                    await travelRequestsApi.resetDemo();
-                    toast.success("Demo trips and bookings restored.");
-                  }
-                })}
-              >
-                <RotateCcw size={13} /> Restore demo
-              </button>
-            </div>
           </div>
         </div>
 
@@ -6607,15 +6558,507 @@ function AdminSettings({ user }: { user: AuthUser }) {
   );
 }
 
-function Admin({ section = "overview", user }: { section?: string; user?: AuthUser }) { if (section === "requests") return <AdminRequests />; if (section === "bookings") return <AdminBookings />; if (section === "reports") return <AdminReports />; if (section === "settings" && user) return <AdminSettings user={user} />; if (section === "users" && user) return <UserManagement user={user} />; return <AdminOverview section={section} />; }
+function Admin({ section = "overview", user }: { section?: string; user?: AuthUser }) { if (section === "requests") return <AdminRequests />; if (section === "bookings") return <AdminBookings />; if (section === "reports") return <AdminReports />; if (section === "settings" && user) return <AdminSettings user={user} />; if (section === "users" && user) return <UserManagement user={user} />; return <AdminOverview section={section} user={user} />; }
 
-function AdminOverview({ section = "overview" }: { section?: string }) {
+function EmployeeDetailModal({ employee, onClose }: { employee: EmployeeRecord; onClose: () => void }) {
+  const fields = [
+    ["Full Name", employee.name || "—"],
+    ["Employee ID", employee.employeeId || "—"],
+    ["Email", employee.email || "—"],
+    ["Contact Number", employee.contactNumber || "—"],
+    ["Department", employee.department || "—"],
+    ["Designation", employee.designation || "—"],
+    ["Location", employee.location || "—"],
+    ["Organization", employee.companyName || employee.companyCode || "—"],
+    ["Status", employee.active !== false ? "Active" : "Inactive"],
+    ["Created", employee.createdAt ? new Date(employee.createdAt).toLocaleDateString() : "—"],
+    ["Updated", employee.updatedAt ? new Date(employee.updatedAt).toLocaleDateString() : "—"],
+  ];
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
+      <div className="confirm-dialog admin-request-dialog">
+        <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close employee details">
+          <X size={18} />
+        </button>
+        <div className="confirm-icon approve">
+          <UsersRound size={22} />
+        </div>
+        <span className="card-kicker">EMPLOYEE RECORD</span>
+        <h2 id="employee-detail-title">{employee.name || "Employee details"}</h2>
+        <p>Verified profile record from the multi-tenant employee directory.</p>
+        <div className="admin-request-detail-grid">
+          {fields.map(([label, value]) => (
+            <div className="admin-request-detail" key={label}>
+              <small>{label}</small>
+              <strong>{String(value)}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="dialog-actions">
+          <button type="button" className="button button-primary" onClick={onClose}>
+            Close details
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminOverview({ section = "overview", user }: { section?: string; user?: AuthUser }) {
   const [summary, setSummary] = useState<Record<string, number> | null>(null);
-  const [employees, setEmployees] = useState<Array<Record<string, string>>>([]);
+  const [activeEmployeeCount, setActiveEmployeeCount] = useState<number | null>(null);
+
+  // Directory state
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [first, setFirst] = useState(true);
+  const [last, setLast] = useState(true);
+
+  // Filter & Search state
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [sort, setSort] = useState("name,asc");
+
+  // Interaction & Lifecycle state
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  useEffect(() => { Promise.all([dashboardApi.summary(), employeesApi.list()]).then(([nextSummary, nextEmployees]) => { setSummary(nextSummary as Record<string, number>); setEmployees(Array.isArray(nextEmployees) ? nextEmployees as Array<Record<string, string>> : []); }).catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Admin data is unavailable.")); }, []);
-  const title = section === "employees" ? "People directory" : section === "requests" ? "Request activity" : section === "bookings" ? "Booking activity" : section === "reports" ? "Organization signals" : "Control center";
-  return <div className="page-stack animate-page"><PageTitle meta={{ ...pageMeta[section === "overview" ? "/admin" : `/admin/${section}`], title }} /><section className="admin-hero"><div><span className="card-kicker">ORGANIZATION VIEW</span><h2>Travel, with the bigger picture in view.</h2><p>Monitor people, requests and bookings from the authenticated admin workspace.</p></div><div className="admin-orbit"><ShieldCheck size={22} /><span>Policy-aware workspace</span></div></section>{error && <div className="form-error-message"><XCircle size={15} />{error}</div>}<section className="stats-grid"><StatCard label="Active employees" value={String(employees.length || 0)} detail="From backend" icon={<UsersRound size={18} />} /><StatCard label="Open requests" value={String(summary?.pendingRequests || 0)} detail="Pending" icon={<FileText size={18} />} accent="stat-accent" /><StatCard label="Total bookings" value={String(summary?.totalBookings || 0)} detail="From backend" icon={<TicketCheck size={18} />} /><StatCard label="Travel requests" value={String(summary?.totalTravelRequests || 0)} detail="All statuses" icon={<WalletCards size={18} />} /></section><div className="panel table-panel"><div className="section-title-row"><div><span className="card-kicker">{section === "employees" ? "DIRECTORY" : "LATEST ACTIVITY"}</span><h2 className="section-heading">{section === "employees" ? "Employees" : "Backend summary"}</h2></div></div>{employees.length ? <div className="responsive-table"><table><thead><tr><th>Name</th><th>Department</th><th>Designation</th><th>Employee ID</th><th /></tr></thead><tbody>{employees.map((employee, index) => <tr key={employee.id || employee.employeeId || index}><td><div className="table-journey"><span className="avatar avatar-tiny">{String(employee.name || "E").slice(0, 2).toUpperCase()}</span><span><strong>{employee.name || "Unnamed employee"}</strong><small>{employee.employeeId || "—"}</small></span></div></td><td>{employee.department || "—"}</td><td>{employee.designation || "—"}</td><td>{employee.employeeId || "—"}</td><td><ChevronRight size={16} className="row-chevron" /></td></tr>)}</tbody></table></div> : <EmptyState icon={<UsersRound size={20} />} title="No employee data returned" description="The admin directory will populate from the connected backend." />}</div></div>;
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
+
+  // Debounce search input by 350ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset page to 0 when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch, statusFilter, sort, size]);
+
+  // Fetch summary and active count
+  useEffect(() => {
+    dashboardApi
+      .summary()
+      .then((nextSummary) => setSummary(nextSummary as Record<string, number>))
+      .catch(() => {});
+
+    employeesApi
+      .list({ active: true, size: 1 })
+      .then((res) => setActiveEmployeeCount(res.totalElements))
+      .catch(() => {});
+  }, [refreshKey]);
+
+  // Fetch paginated employees from backend
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+
+    const activeParam =
+      statusFilter === "ACTIVE" ? true : statusFilter === "INACTIVE" ? false : undefined;
+
+    employeesApi
+      .list({
+        page,
+        size,
+        search: debouncedSearch || undefined,
+        active: activeParam,
+        sort,
+      })
+      .then((res) => {
+        if (!active) return;
+        setEmployees(res.content);
+        setTotalPages(res.totalPages);
+        setTotalElements(res.totalElements);
+        setFirst(res.first);
+        setLast(res.last);
+        setLoading(false);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        setError(requestError instanceof Error ? requestError.message : "Failed to load employee directory.");
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [page, size, debouncedSearch, statusFilter, sort, refreshKey]);
+
+  const title =
+    section === "employees"
+      ? "People directory"
+      : section === "requests"
+      ? "Request activity"
+      : section === "bookings"
+      ? "Booking activity"
+      : section === "reports"
+      ? "Organization signals"
+      : "Control center";
+
+  const startRecord = totalElements === 0 ? 0 : page * size + 1;
+  const endRecord = Math.min((page + 1) * size, totalElements);
+  const rangeText =
+    totalElements === 0
+      ? "0 employees"
+      : `Showing ${startRecord}–${endRecord} of ${totalElements} employee${totalElements === 1 ? "" : "s"}`;
+
+  const hasActiveFilters = Boolean(debouncedSearch || statusFilter !== "ALL");
+
+  return (
+    <div className="page-stack animate-page">
+      <PageTitle meta={{ ...pageMeta[section === "overview" ? "/admin" : `/admin/${section}`], title }} />
+
+      <section className="admin-hero">
+        <div>
+          <span className="card-kicker">ORGANIZATION VIEW</span>
+          <h2>Travel, with the bigger picture in view.</h2>
+          <p>Monitor people, requests and bookings from the authenticated admin workspace.</p>
+        </div>
+        <div className="admin-orbit">
+          <ShieldCheck size={22} />
+          <span>Policy-aware workspace</span>
+        </div>
+      </section>
+
+      {error && (
+        <div className="form-error-message" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <XCircle size={15} />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            className="button button-ghost"
+            onClick={() => setRefreshKey((k) => k + 1)}
+            style={{ padding: "4px 10px", fontSize: "11px", height: "auto" }}
+          >
+            <RotateCcw size={13} style={{ marginRight: 4 }} /> Retry
+          </button>
+        </div>
+      )}
+
+      <section className="stats-grid">
+        <StatCard
+          label="Active employees"
+          value={activeEmployeeCount !== null ? String(activeEmployeeCount) : String(totalElements || 0)}
+          detail="From backend"
+          icon={<UsersRound size={18} />}
+        />
+        <StatCard
+          label="Open requests"
+          value={String(summary?.pendingRequests || 0)}
+          detail="Pending"
+          icon={<FileText size={18} />}
+          accent="stat-accent"
+        />
+        <StatCard
+          label="Total bookings"
+          value={String(summary?.totalBookings || 0)}
+          detail="From backend"
+          icon={<TicketCheck size={18} />}
+        />
+        <StatCard
+          label="Travel requests"
+          value={String(summary?.totalTravelRequests || 0)}
+          detail="All statuses"
+          icon={<WalletCards size={18} />}
+        />
+      </section>
+
+      <div className="panel table-panel">
+        <div className="section-title-row">
+          <div>
+            <span className="card-kicker">{section === "employees" ? "DIRECTORY" : "LATEST ACTIVITY"}</span>
+            <h2 className="section-heading">{section === "employees" ? "Employees" : "Backend summary"}</h2>
+          </div>
+          <span className="data-note">
+            <ShieldCheck size={13} /> Live backend directory
+          </span>
+        </div>
+
+        {/* Directory Search & Filter Toolbar */}
+        <div className="table-toolbar" style={{ flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+          <div className="search-field" style={{ minWidth: 240, maxWidth: 340 }}>
+            <Search size={16} />
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by name, ID, department, email…"
+              aria-label="Search employee directory"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput("")}
+                className="icon-button"
+                style={{ padding: 2, background: "transparent", border: 0 }}
+                aria-label="Clear search input"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="toolbar-filters">
+            <Filter size={15} />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              aria-label="Filter by status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active Only</option>
+              <option value="INACTIVE">Inactive Only</option>
+            </select>
+          </div>
+
+          <div className="toolbar-filters">
+            <SlidersHorizontal size={15} />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort employees"
+            >
+              <option value="name,asc">Name (A → Z)</option>
+              <option value="name,desc">Name (Z → A)</option>
+              <option value="employeeId,asc">Employee ID (Asc)</option>
+              <option value="employeeId,desc">Employee ID (Desc)</option>
+              <option value="department,asc">Department (A → Z)</option>
+              <option value="createdAt,desc">Recently Added</option>
+            </select>
+          </div>
+
+          <div className="toolbar-filters">
+            <select
+              value={size}
+              onChange={(e) => setSize(Number(e.target.value))}
+              aria-label="Page size"
+            >
+              <option value="10">10 / page</option>
+              <option value="25">25 / page</option>
+              <option value="50">50 / page</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setRefreshKey((k) => k + 1)}
+            title="Refresh directory"
+            aria-label="Refresh directory"
+            style={{ marginLeft: "auto", border: "1px solid var(--line)", borderRadius: 8, height: 36, width: 36 }}
+          >
+            <RotateCcw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+
+        {/* Directory Table or Empty / Loading State */}
+        {loading && employees.length === 0 ? (
+          <div style={{ display: "grid", placeItems: "center", minHeight: 220, gap: 10, color: "var(--ink-muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Clock3 size={18} className="animate-spin" />
+              <span>Loading employee directory…</span>
+            </div>
+          </div>
+        ) : employees.length ? (
+          <>
+            <div className="responsive-table" style={{ opacity: loading ? 0.65 : 1, transition: "opacity 0.2s ease" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Email & Contact</th>
+                    <th>Department</th>
+                    <th>Designation & Location</th>
+                    <th>Status</th>
+                    <th>Company</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((employee, index) => (
+                    <tr
+                      key={employee.id || employee.employeeId || index}
+                      onClick={() => setSelectedEmployee(employee)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <td>
+                        <div className="table-journey">
+                          <span className="avatar avatar-tiny">
+                            {String(employee.name || "E").slice(0, 2).toUpperCase()}
+                          </span>
+                          <span>
+                            <strong>{employee.name || "Unnamed employee"}</strong>
+                            <small>{employee.employeeId || "—"}</small>
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: "grid", gap: 2 }}>
+                          <span style={{ fontSize: "11px", color: "var(--ink)" }}>{employee.email || "—"}</span>
+                          {employee.contactNumber && (
+                            <small style={{ color: "var(--ink-muted)", fontSize: "10px" }}>{employee.contactNumber}</small>
+                          )}
+                        </div>
+                      </td>
+                      <td>{employee.department || "—"}</td>
+                      <td>
+                        <div style={{ display: "grid", gap: 2 }}>
+                          <span>{employee.designation || "—"}</span>
+                          {employee.location && (
+                            <small style={{ color: "var(--ink-muted)", fontSize: "10px" }}>{employee.location}</small>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            employee.active !== false
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              : "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              employee.active !== false ? "bg-emerald-500" : "bg-zinc-400"
+                            }`}
+                          />
+                          {employee.active !== false ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: "11px", color: "var(--ink-muted)" }}>
+                          {employee.companyName || employee.companyCode || "Mahathi Infra"}
+                        </span>
+                      </td>
+                      <td>
+                        <ChevronRight size={16} className="row-chevron" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div
+              className="directory-pagination"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 12,
+                marginTop: 20,
+                paddingTop: 16,
+                borderTop: "1px solid var(--line)",
+                fontSize: "12px",
+                color: "var(--ink-muted)",
+              }}
+            >
+              <div>
+                <span>{rangeText}</span>
+                {totalPages > 1 && (
+                  <span style={{ marginLeft: 8, opacity: 0.75 }}>
+                    • Page {page + 1} of {totalPages}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={first || page === 0 || loading}
+                  style={{ padding: "6px 12px", fontSize: "12px", display: "flex", alignItems: "center", gap: 4 }}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={15} /> Previous
+                </button>
+
+                {totalPages <= 7 ? (
+                  Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPage(i)}
+                      disabled={loading}
+                      className={`button ${page === i ? "button-primary" : "button-ghost"}`}
+                      style={{
+                        minWidth: 32,
+                        height: 32,
+                        padding: "0 8px",
+                        fontSize: "12px",
+                        borderRadius: 6,
+                      }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))
+                ) : (
+                  <span style={{ padding: "0 6px", fontWeight: 600 }}>
+                    {page + 1} / {totalPages}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  disabled={last || page >= totalPages - 1 || loading}
+                  style={{ padding: "6px 12px", fontSize: "12px", display: "flex", alignItems: "center", gap: 4 }}
+                  aria-label="Next page"
+                >
+                  Next <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <EmptyState
+            icon={hasActiveFilters ? <Search size={22} /> : <UsersRound size={22} />}
+            title={hasActiveFilters ? "No matching employees" : "No employee data returned"}
+            description={
+              hasActiveFilters
+                ? `No employees match your search query or filters. Try adjusting your search term or clearing the filters.`
+                : "The admin directory will populate from the connected backend."
+            }
+            action={
+              hasActiveFilters ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => {
+                    setSearchInput("");
+                    setStatusFilter("ALL");
+                  }}
+                  style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <RotateCcw size={14} /> Clear filters
+                </button>
+              ) : undefined
+            }
+          />
+        )}
+      </div>
+
+      {selectedEmployee && (
+        <EmployeeDetailModal
+          employee={selectedEmployee}
+          onClose={() => setSelectedEmployee(null)}
+        />
+      )}
+    </div>
+  );
 }
 function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
   const { theme, toggleTheme } = useTheme();
@@ -6872,6 +7315,7 @@ function AppRouter() {
       "/travel-desk",
       "/travel-desk/bookings",
       "/travel-desk/bulk-bookings",
+      "/travel-desk/excel-import",
       "/travel-desk/users",
       "/travel-desk/cancellations",
       "/travel-desk/reports",
@@ -6882,6 +7326,7 @@ function AppRouter() {
       "/admin/employees",
       "/admin/requests",
       "/admin/bookings",
+      "/admin/excel-import",
       "/admin/users",
       "/admin/reports",
       "/admin/settings",
@@ -6944,6 +7389,7 @@ function AppRouter() {
   else if (path === "/approver/bookings") page = <ApproverBookings />;
   else if (path === "/approver/bulk-bookings") page = <ApproverBulkBookings />;
   else if (path === "/approver/history") page = <Approvals history />;
+  else if (path === "/travel-desk/excel-import" || path === "/admin/excel-import") page = <ExcelImport user={user} />;
   else if (path === "/travel-desk" || path === "/travel-desk/bookings" || path === "/travel-desk/bulk-bookings" || path === "/travel-desk/cancellations") page = <TravelDesk />;
   else if (path.startsWith("/admin")) page = <Admin user={user} section={path === "/admin" ? "overview" : path.replace("/admin/", "")} />;
   else page = <Dashboard user={user} />;

@@ -2,9 +2,12 @@ package com.traveldesk.backend.employee;
 
 import com.traveldesk.backend.company.Company;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "employees")
+@Table(name = "employees", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_employees_company_emp_id", columnNames = {"company_id", "employee_id"})
+})
 public class Employee {
 
     @Id
@@ -15,7 +18,7 @@ public class Employee {
     @JoinColumn(name = "company_id")
     private Company company;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "employee_id", nullable = false)
     private String employeeId;
 
     @Column(nullable = false)
@@ -24,6 +27,35 @@ public class Employee {
     private String department;
     private String designation;
     private String location;
+
+    private String email;
+
+    @Column(name = "contact_number")
+    private String contactNumber;
+
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     public Long getId() {
         return id;
@@ -79,5 +111,45 @@ public class Employee {
 
     public void setLocation(String location) {
         this.location = location;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }
