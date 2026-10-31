@@ -10,6 +10,19 @@ const API_BASE_URL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
   (isLocal ? "http://localhost:8080" : DEFAULT_BACKEND_URL);
 
+export function getResolvedUrl(path: string): string {
+  if (typeof window !== "undefined") {
+    const host = window.location?.hostname || "";
+    // When running on any Vercel domain (*.vercel.app), use same-origin relative path
+    // which is proxied by vercel.json server-side rewrite to https://trapple.onrender.com
+    // eliminating CORS preflight errors completely.
+    if (host.includes("vercel.app") && !(typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL)) {
+      return path;
+    }
+  }
+  return `${API_BASE_URL}${path}`;
+}
+
 export type Role = "EMPLOYEE" | "APPROVER" | "TRAVEL_DESK" | "ADMIN" | "COMPANY_ADMIN" | "PLATFORM_ADMIN";
 export type AuthUser = {
   id: number;
@@ -405,9 +418,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   let response: Response;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const targetUrl = getResolvedUrl(path);
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(targetUrl, {
       ...requestOptions,
       signal: controller.signal,
       headers: {
@@ -416,8 +430,38 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
         ...headers,
       },
     });
+
+    // If same-origin rewrite returned HTML fallback (proxy unreachable), fallback to direct backend URL
+    const contentType = response.headers.get("content-type") || "";
+    if (targetUrl === path && contentType.includes("text/html")) {
+      response = await fetch(`${DEFAULT_BACKEND_URL}${path}`, {
+        ...requestOptions,
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+      });
+    }
   } catch {
-    throw new Error("We couldn't reach Trapple. Check your connection and try again.");
+    if (targetUrl === path) {
+      try {
+        response = await fetch(`${DEFAULT_BACKEND_URL}${path}`, {
+          ...requestOptions,
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
+            ...headers,
+          },
+        });
+      } catch {
+        throw new Error("We couldn't reach Trapple. Check your connection and try again.");
+      }
+    } else {
+      throw new Error("We couldn't reach Trapple. Check your connection and try again.");
+    }
   } finally {
     clearTimeout(timer);
   }
@@ -1112,15 +1156,36 @@ export const importsApi = {
     if (sheet) formData.append("sheet", sheet);
 
     const token = getToken();
+    const uploadUrl = getResolvedUrl("/api/imports/upload");
     let res: Response;
     try {
-      res = await fetch(`${API_BASE_URL}/api/imports/upload`, {
+      res = await fetch(uploadUrl, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
+      const contentType = res.headers.get("content-type") || "";
+      if (uploadUrl === "/api/imports/upload" && contentType.includes("text/html")) {
+        res = await fetch(`${DEFAULT_BACKEND_URL}/api/imports/upload`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+      }
     } catch {
-      throw new Error("We couldn't reach Trapple. Check your connection and try again.");
+      if (uploadUrl === "/api/imports/upload") {
+        try {
+          res = await fetch(`${DEFAULT_BACKEND_URL}/api/imports/upload`, {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          });
+        } catch {
+          throw new Error("We couldn't reach Trapple. Check your connection and try again.");
+        }
+      } else {
+        throw new Error("We couldn't reach Trapple. Check your connection and try again.");
+      }
     }
 
     const bodyText = await res.text();

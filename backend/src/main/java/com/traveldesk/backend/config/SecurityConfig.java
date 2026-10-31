@@ -98,10 +98,19 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(origin -> !origin.isBlank())
-                .toList());
+        List<String> origins = new java.util.ArrayList<>(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(origin -> !origin.isBlank())
+                        .toList()
+        );
+        origins.add("https://*.vercel.app");
+        origins.add("https://*.onrender.com");
+        origins.add("http://localhost:*");
+        origins.add("https://localhost:*");
+        origins.add("*");
+
+        configuration.setAllowedOriginPatterns(origins);
 
         configuration.setAllowedMethods(
                 List.of(
@@ -117,7 +126,17 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(
                 List.of(
                         "Authorization",
-                        "Content-Type"
+                        "Content-Type",
+                        "Accept",
+                        "X-Requested-With",
+                        "Origin"
+                )
+        );
+
+        configuration.setExposedHeaders(
+                List.of(
+                        "Authorization",
+                        "Content-Disposition"
                 )
         );
 
