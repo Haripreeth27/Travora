@@ -60,23 +60,40 @@ public class SpreadsheetParserService {
 
             DataFormatter formatter = new DataFormatter();
             int headerRowIdx = -1;
+            int bestScore = -1;
 
-            // Find first non-empty row as header
-            for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum(); r++) {
+            // Intelligent Header Row Detection:
+            // Scans the first 30 rows to locate the true table header row.
+            // Banners/titles like "AIR TICKETS" with only 1 non-empty cell will be correctly skipped.
+            int scanLimit = Math.min(sheet.getLastRowNum(), sheet.getFirstRowNum() + 30);
+            for (int r = sheet.getFirstRowNum(); r <= scanLimit; r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
+
+                int nonEmptyCount = 0;
+                int keywordScore = 0;
                 List<String> candidateHeaders = new ArrayList<>();
-                boolean hasContent = false;
+
                 for (int c = 0; c < row.getLastCellNum(); c++) {
                     Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                     String val = cell != null ? formatCellValueSafely(cell, formatter).trim() : "";
                     candidateHeaders.add(val.isEmpty() ? "Column_" + (c + 1) : val);
-                    if (!val.isEmpty()) hasContent = true;
+                    if (!val.isEmpty()) {
+                        nonEmptyCount++;
+                        if (isProbableHeaderCell(val)) {
+                            keywordScore += 10;
+                        }
+                    }
                 }
-                if (hasContent) {
-                    headers = candidateHeaders;
+
+                // Header score favors rows with recognized keywords and multiple columns
+                int totalScore = (keywordScore * 2) + nonEmptyCount;
+
+                // A true table header row must have at least 2 non-empty cells
+                if (nonEmptyCount >= 2 && totalScore > bestScore) {
+                    bestScore = totalScore;
                     headerRowIdx = r;
-                    break;
+                    headers = candidateHeaders;
                 }
             }
 
@@ -100,7 +117,8 @@ public class SpreadsheetParserService {
                     if (!val.isEmpty()) hasData = true;
                 }
 
-                if (hasData) {
+                // Ignore empty rows or summary/total rows (e.g. "Total", "Grand Total")
+                if (hasData && !isSummaryRow(rowMap)) {
                     rows.add(rowMap);
                     rowsProcessed++;
                 }
@@ -108,6 +126,39 @@ public class SpreadsheetParserService {
         }
 
         return new ParsedSheet(headers, rows, sheetNames, activeSheetName);
+    }
+
+    private boolean isProbableHeaderCell(String cellValue) {
+        if (cellValue == null || cellValue.isBlank()) return false;
+        String s = cellValue.toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+        return s.contains("date") || s.contains("dt") ||
+               s.contains("name") || s.contains("passenger") || s.contains("pax") ||
+               s.contains("traveler") || s.contains("traveller") || s.contains("employee") ||
+               s.contains("sector") || s.contains("route") || s.contains("routing") ||
+               s.contains("from") || s.contains("to") || s.contains("origin") || s.contains("dest") ||
+               s.contains("ticket") || s.contains("pnr") || s.contains("airline") ||
+               s.contains("carrier") || s.contains("mode") || s.contains("flight") ||
+               s.contains("amount") || s.contains("fare") || s.contains("cost") ||
+               s.contains("basic") || s.contains("tax") || s.contains("total") || s.contains("net") ||
+               s.contains("project") || s.contains("dept") || s.contains("department") ||
+               s.contains("emp") || s.contains("staff") || s.contains("id") || s.contains("code") ||
+               s.contains("sl") || s.contains("sno") || s.contains("invoice") || s.contains("inv");
+    }
+
+    private boolean isSummaryRow(Map<String, String> rowMap) {
+        if (rowMap == null || rowMap.isEmpty()) return true;
+        for (String val : rowMap.values()) {
+            if (val != null && !val.isBlank()) {
+                String norm = val.toLowerCase().trim();
+                if (norm.startsWith("total") || norm.startsWith("grand total") ||
+                    norm.startsWith("sub total") || norm.equals("sum") ||
+                    norm.startsWith("subtotal")) {
+                    return true;
+                }
+                break;
+            }
+        }
+        return false;
     }
 
     /**
@@ -214,6 +265,8 @@ public class SpreadsheetParserService {
                 mapping.put("fromLocation", header);
             } else if (!mapping.containsKey("toLocation") && matchesTo(norm)) {
                 mapping.put("toLocation", header);
+            } else if (!mapping.containsKey("sector") && matchesSector(norm)) {
+                mapping.put("sector", header);
             } else if (!mapping.containsKey("ticketReference") && matchesTicket(norm)) {
                 mapping.put("ticketReference", header);
             } else if (!mapping.containsKey("department") && matchesDept(norm)) {
@@ -277,57 +330,86 @@ public class SpreadsheetParserService {
                s.equals("surname") || s.equals("family name") || s.equals("last");
     }
 
+    private boolean matchesSector(String s) {
+        if (s == null || s.isBlank()) return false;
+        return s.equals("sector") || s.equals("sectors") || s.equals("routing") ||
+               s.equals("route") || s.equals("travel route") || s.equals("journey") ||
+               s.equals("city pair") || s.equals("origin destination") || s.equals("orig dest");
+    }
+
     private boolean matchesTravelDate(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("travel date") || s.equals("departure date") || s.equals("date of travel") ||
                s.equals("journey date") || s.equals("depart date") || s.equals("travel date time") ||
-               s.equals("date") || s.equals("start date") || s.equals("flight date");
+               s.equals("date") || s.equals("start date") || s.equals("flight date") ||
+               s.equals("booking date") || s.equals("travel dt") || s.equals("dt") ||
+               s.equals("issue date") || s.equals("tkt date");
     }
 
     private boolean matchesReturnDate(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("return date") || s.equals("arrival date") || s.equals("end date") ||
                s.equals("comeback date") || s.equals("trip end date");
     }
 
     private boolean matchesFrom(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("from") || s.equals("origin") || s.equals("source") ||
                s.equals("from location") || s.equals("departure city") || s.equals("from city") ||
-               s.equals("departure location") || s.equals("source station");
+               s.equals("departure location") || s.equals("source station") || s.equals("dep city") ||
+               s.equals("departure") || s.equals("board") || s.equals("boarding");
     }
 
     private boolean matchesTo(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("to") || s.equals("destination") || s.equals("to location") ||
                s.equals("arrival city") || s.equals("to city") || s.equals("arrival location") ||
-               s.equals("dest") || s.equals("destination city");
+               s.equals("dest") || s.equals("destination city") || s.equals("arr city") ||
+               s.equals("arrival") || s.equals("debark") || s.equals("alighting");
     }
 
     private boolean matchesTicket(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("ticket number") || s.equals("ticket no") || s.equals("pnr") ||
                s.equals("booking reference") || s.equals("booking ref") || s.equals("ticket ref") ||
-               s.equals("reference") || s.equals("confirmation number") || s.equals("ticket id");
+               s.equals("reference") || s.equals("confirmation number") || s.equals("ticket id") ||
+               s.equals("tkt no") || s.equals("ticket") || s.equals("pnr no") ||
+               s.equals("eticket") || s.equals("e ticket") || s.equals("air ticket") ||
+               s.equals("booking id");
     }
 
     private boolean matchesDept(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("department") || s.equals("dept") || s.equals("division") ||
                s.equals("dept name") || s.equals("department name") || s.equals("business unit");
     }
 
     private boolean matchesMode(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("travel mode") || s.equals("mode") || s.equals("mode of travel") ||
                s.equals("transport") || s.equals("travel type") || s.equals("booking type");
     }
 
     private boolean matchesProvider(String s) {
-        return s.equals("provider") || s.equals("airline") || s.equals("carrier") ||
-               s.equals("vendor") || s.equals("operator") || s.equals("service provider");
+        if (s == null || s.isBlank()) return false;
+        return s.equals("provider") || s.equals("airline") || s.equals("airlines") ||
+               s.equals("carrier") || s.equals("vendor") || s.equals("operator") ||
+               s.equals("service provider") || s.equals("airways");
     }
 
     private boolean matchesCost(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("cost") || s.equals("amount") || s.equals("fare") ||
                s.equals("price") || s.equals("total cost") || s.equals("ticket cost") ||
-               s.equals("total amount") || s.equals("total fare");
+               s.equals("total amount") || s.equals("total fare") || s.equals("net amount") ||
+               s.equals("net fare") || s.equals("gross amount") || s.equals("gross fare") ||
+               s.equals("invoice amount") || s.equals("total") || s.equals("bill amount") ||
+               s.equals("air fare") || s.equals("fare amount") || s.equals("basic fare") ||
+               s.equals("basic") || s.equals("inr");
     }
 
     private boolean matchesProject(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("project") || s.equals("project name") || s.equals("project code") ||
                s.equals("cost center") || s.equals("wbs code");
     }

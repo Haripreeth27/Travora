@@ -49,6 +49,7 @@ const FIELD_LABELS: Record<string, string> = {
   returnDate: "Return Date",
   fromLocation: "Origin / From City",
   toLocation: "Destination / To City",
+  sector: "Route / Sector (e.g. HYD-DEL)",
   ticketReference: "Ticket Number / PNR",
   department: "Department",
   travelMode: "Travel Mode (Flight/Train/Bus)",

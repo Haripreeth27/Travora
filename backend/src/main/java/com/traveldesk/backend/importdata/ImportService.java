@@ -456,21 +456,118 @@ public class ImportService {
         String normalizedName = normalizeDisplayName(rawName);
         record.setRawEmployeeName(normalizedName != null && !normalizedName.isBlank() ? normalizedName : rawName);
 
-        record.setFromLocation(getMappedValue(rowMap, mapping, "fromLocation"));
-        record.setToLocation(getMappedValue(rowMap, mapping, "toLocation"));
-        record.setTicketReference(getMappedValue(rowMap, mapping, "ticketReference"));
+        // Sector / Route parsing: extract fromLocation and toLocation
+        String fromLoc = getMappedValue(rowMap, mapping, "fromLocation");
+        String toLoc = getMappedValue(rowMap, mapping, "toLocation");
+
+        if (fromLoc == null || toLoc == null) {
+            String sector = getMappedValue(rowMap, mapping, "sector");
+            if (sector == null || sector.isBlank()) {
+                sector = getMappedValue(rowMap, mapping, "route");
+            }
+            if (sector == null || sector.isBlank()) {
+                for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                    String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                    if ((normKey.equals("sector") || normKey.equals("sectors") ||
+                         normKey.equals("routing") || normKey.equals("route") ||
+                         normKey.equals("city pair")) && entry.getValue() != null && !entry.getValue().isBlank()) {
+                        sector = entry.getValue().trim();
+                        break;
+                    }
+                }
+            }
+
+            if (sector != null && !sector.isBlank()) {
+                String[] parts = sector.split("\\s*(?:-|–|—|/|\\bto\\b)\\s*");
+                if (parts.length >= 2) {
+                    if (fromLoc == null || fromLoc.isBlank()) fromLoc = parts[0].trim();
+                    if (toLoc == null || toLoc.isBlank()) toLoc = parts[parts.length - 1].trim();
+                } else if (parts.length == 1 && (fromLoc == null || fromLoc.isBlank())) {
+                    fromLoc = parts[0].trim();
+                }
+            }
+        }
+        record.setFromLocation(fromLoc);
+        record.setToLocation(toLoc);
+
+        // Ticket Reference
+        String ticket = getMappedValue(rowMap, mapping, "ticketReference");
+        if (ticket == null || ticket.isBlank()) {
+            for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                if ((normKey.contains("ticket") || normKey.contains("tkt") || normKey.contains("pnr")) &&
+                    entry.getValue() != null && !entry.getValue().isBlank()) {
+                    ticket = entry.getValue().trim();
+                    break;
+                }
+            }
+        }
+        record.setTicketReference(ticket);
+
         record.setDepartment(getMappedValue(rowMap, mapping, "department"));
-        record.setTravelMode(getMappedValue(rowMap, mapping, "travelMode"));
-        record.setProvider(getMappedValue(rowMap, mapping, "provider"));
+
+        // Provider (Airline / Carrier)
+        String provider = getMappedValue(rowMap, mapping, "provider");
+        if (provider == null || provider.isBlank()) {
+            for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                if ((normKey.contains("airline") || normKey.contains("carrier") || normKey.contains("airways") || normKey.contains("vendor")) &&
+                    entry.getValue() != null && !entry.getValue().isBlank()) {
+                    provider = entry.getValue().trim();
+                    break;
+                }
+            }
+        }
+        record.setProvider(provider);
+
+        // Travel Mode
+        String travelMode = getMappedValue(rowMap, mapping, "travelMode");
+        if (travelMode == null || travelMode.isBlank()) {
+            if (record.getImportBatch() != null && record.getImportBatch().getSheetName() != null &&
+                record.getImportBatch().getSheetName().toUpperCase().contains("AIR")) {
+                travelMode = "FLIGHT";
+            } else if (provider != null && (provider.toLowerCase().contains("air") || provider.toLowerCase().contains("indigo") ||
+                                            provider.toLowerCase().contains("vistara") || provider.toLowerCase().contains("spicejet"))) {
+                travelMode = "FLIGHT";
+            } else {
+                travelMode = "FLIGHT";
+            }
+        }
+        record.setTravelMode(travelMode);
+
         record.setProjectName(getMappedValue(rowMap, mapping, "projectName"));
 
+        // Travel Date
         String travelDateStr = getMappedValue(rowMap, mapping, "travelDate");
+        if (travelDateStr == null || travelDateStr.isBlank()) {
+            for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                if ((normKey.contains("date") || normKey.contains("dt")) &&
+                    !normKey.contains("return") && !normKey.contains("arr") &&
+                    entry.getValue() != null && !entry.getValue().isBlank()) {
+                    travelDateStr = entry.getValue().trim();
+                    break;
+                }
+            }
+        }
         record.setTravelDate(parseDateSafely(travelDateStr));
 
         String returnDateStr = getMappedValue(rowMap, mapping, "returnDate");
         record.setReturnDate(parseDateSafely(returnDateStr));
 
+        // Cost
         String costStr = getMappedValue(rowMap, mapping, "cost");
+        if (costStr == null || costStr.isBlank()) {
+            for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                if ((normKey.contains("amount") || normKey.contains("fare") || normKey.contains("cost") ||
+                     normKey.contains("total") || normKey.contains("net") || normKey.contains("basic")) &&
+                    entry.getValue() != null && !entry.getValue().isBlank()) {
+                    costStr = entry.getValue().trim();
+                    break;
+                }
+            }
+        }
         record.setCost(parseCostSafely(costStr));
     }
 
@@ -672,16 +769,40 @@ public class ImportService {
         if (str == null || str.isBlank()) return null;
         String trimmed = str.trim();
 
-        // Common date formats
+        // 1. Try numeric Excel date serial number (e.g. "45565")
+        try {
+            double serial = Double.parseDouble(trimmed);
+            if (serial > 30000 && serial < 60000) {
+                return LocalDate.of(1899, 12, 30).plusDays((long) serial);
+            }
+        } catch (NumberFormatException ignored) {}
+
+        // Common date formats (both 4-digit and 2-digit years, dot and slash separators)
         List<DateTimeFormatter> formatters = List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE,                           // yyyy-MM-dd
                 DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-                DateTimeFormatter.ofPattern("MM/dd/yyyy"),
-                DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-                DateTimeFormatter.ofPattern("yyyy/MM/dd"),
                 DateTimeFormatter.ofPattern("d/M/yyyy"),
-                DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH),
-                DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+                DateTimeFormatter.ofPattern("MM/dd/yyyy"),
+                DateTimeFormatter.ofPattern("M/d/yyyy"),
+                DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+                DateTimeFormatter.ofPattern("d-M-yyyy"),
+                DateTimeFormatter.ofPattern("dd.MM.yyyy"),
+                DateTimeFormatter.ofPattern("d.M.yyyy"),
+                DateTimeFormatter.ofPattern("dd/MM/yy"),
+                DateTimeFormatter.ofPattern("d/M/yy"),
+                DateTimeFormatter.ofPattern("dd-MM-yy"),
+                DateTimeFormatter.ofPattern("d-M-yy"),
+                DateTimeFormatter.ofPattern("dd.MM.yy"),
+                DateTimeFormatter.ofPattern("d.M.yy"),
+                DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd-MMM-yyyy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d-MMM-yyyy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd-MMM-yy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d-MMM-yy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd MMM yyyy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMM yyyy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd MMM yy").toFormatter(Locale.ENGLISH),
+                new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMM yy").toFormatter(Locale.ENGLISH)
         );
 
         for (DateTimeFormatter dtf : formatters) {

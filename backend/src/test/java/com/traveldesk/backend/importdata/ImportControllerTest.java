@@ -541,4 +541,60 @@ class ImportControllerTest {
                 .andExpect(jsonPath("$.content[0].matchedEmployeeCode").value("EMP001"))
                 .andExpect(jsonPath("$.content[0].status").value("MATCHED"));
     }
+
+    @Test
+    @DisplayName("18. Title banner on Row 0 is skipped and real table headers with Sector on Row 1 are extracted")
+    void upload_titleBannerAtRowZero_skipsBannerAndExtractsHeadersWithSector() throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            XSSFSheet sheet = wb.createSheet("AIR TICKETING");
+            // Row 0: Title banner (single cell with text)
+            Row r0 = sheet.createRow(0);
+            r0.createCell(0).setCellValue("AIR TICKETS");
+
+            // Row 1: Real table headers
+            Row r1 = sheet.createRow(1);
+            r1.createCell(0).setCellValue("Date");
+            r1.createCell(1).setCellValue("Pax Name");
+            r1.createCell(2).setCellValue("Sector");
+            r1.createCell(3).setCellValue("Ticket No");
+            r1.createCell(4).setCellValue("Net Amount");
+
+            // Row 2: Data row
+            Row r2 = sheet.createRow(2);
+            r2.createCell(0).setCellValue("15-Sep-2026");
+            r2.createCell(1).setCellValue("Alice Walker");
+            r2.createCell(2).setCellValue("HYD-DEL");
+            r2.createCell(3).setCellValue("6E-502");
+            r2.createCell(4).setCellValue(6800.0);
+
+            wb.write(bos);
+            byte[] bytes = bos.toByteArray();
+
+            MockMultipartFile file = new MockMultipartFile(
+                    "file", "MISPL_SEP_2026.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes
+            );
+
+            org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(multipart("/api/imports/upload")
+                            .file(file)
+                            .header("Authorization", tokenTravelDeskA))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.status").value("PREVIEW"))
+                    .andExpect(jsonPath("$.totalRows").value(1))
+                    .andExpect(jsonPath("$.validRows").value(1))
+                    .andExpect(jsonPath("$.errorRows").value(0))
+                    .andReturn();
+
+            Number batchId = com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+            mockMvc.perform(get("/api/imports/" + batchId + "/records")
+                            .header("Authorization", tokenTravelDeskA))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content[0].rawEmployeeName").value("Alice Walker"))
+                    .andExpect(jsonPath("$.content[0].fromLocation").value("HYD"))
+                    .andExpect(jsonPath("$.content[0].toLocation").value("DEL"))
+                    .andExpect(jsonPath("$.content[0].ticketReference").value("6E-502"))
+                    .andExpect(jsonPath("$.content[0].cost").value(6800.0))
+                    .andExpect(jsonPath("$.content[0].status").value("MATCHED"));
+        }
+    }
 }
