@@ -335,6 +335,12 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
       ],
     },
   ],
+  get COMPANY_ADMIN() {
+    return this.ADMIN;
+  },
+  get PLATFORM_ADMIN() {
+    return this.ADMIN;
+  },
 };
 
 const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]> = {
@@ -342,6 +348,8 @@ const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]
   APPROVER: categorizedNavByRole.APPROVER.flatMap((c) => c.items),
   TRAVEL_DESK: categorizedNavByRole.TRAVEL_DESK.flatMap((c) => c.items),
   ADMIN: categorizedNavByRole.ADMIN.flatMap((c) => c.items),
+  COMPANY_ADMIN: categorizedNavByRole.ADMIN.flatMap((c) => c.items),
+  PLATFORM_ADMIN: categorizedNavByRole.ADMIN.flatMap((c) => c.items),
 };
 
 const roleLabels: Record<Role, string> = {
@@ -349,6 +357,8 @@ const roleLabels: Record<Role, string> = {
   APPROVER: "Approver",
   TRAVEL_DESK: "Travel desk",
   ADMIN: "Administrator",
+  COMPANY_ADMIN: "Company Administrator",
+  PLATFORM_ADMIN: "Platform Administrator",
 };
 
 function Logo({ compact = false }: { compact?: boolean }) {
@@ -7289,8 +7299,20 @@ function AppRouter() {
     APPROVER: "/approver",
     TRAVEL_DESK: "/travel-desk",
     ADMIN: "/admin",
+    COMPANY_ADMIN: "/admin",
+    PLATFORM_ADMIN: "/admin",
   };
   const path = location === "/" ? (user ? roleRoots[user.role] : "/login") : location;
+  const adminPaths = [
+    "/admin",
+    "/admin/employees",
+    "/admin/requests",
+    "/admin/bookings",
+    "/admin/excel-import",
+    "/admin/users",
+    "/admin/reports",
+    "/admin/settings",
+  ];
   const allowedPaths: Record<Role, string[]> = {
     EMPLOYEE: [
       "/employee",
@@ -7321,16 +7343,9 @@ function AppRouter() {
       "/travel-desk/reports",
       "/employee/reports",
     ],
-    ADMIN: [
-      "/admin",
-      "/admin/employees",
-      "/admin/requests",
-      "/admin/bookings",
-      "/admin/excel-import",
-      "/admin/users",
-      "/admin/reports",
-      "/admin/settings",
-    ],
+    ADMIN: adminPaths,
+    COMPANY_ADMIN: adminPaths,
+    PLATFORM_ADMIN: adminPaths,
   };
   const onLogout = () => {
     clearAuth();

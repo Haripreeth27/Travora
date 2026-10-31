@@ -230,5 +230,99 @@ describe("Excel Import & Travel History Frontend Contract Tests", () => {
       assert.equal(getPassengerInitials("—"), "PA");
     });
   });
+
+  describe("Client-Side SaaS Spreadsheet Parser Suite", async () => {
+    const {
+      parseSpreadsheetClient,
+      normalizePassengerName,
+      splitSector,
+      parseExcelDate,
+      parseCost,
+      isSummaryRow,
+    } = await import("../lib/spreadsheetParser.ts");
+    const XLSX = await import("xlsx");
+
+    test("normalizePassengerName handles airline notation, commas, and honorifics", () => {
+      assert.equal(normalizePassengerName("DANGETI/SURESH BABU MR"), "Suresh Babu Dangeti");
+      assert.equal(normalizePassengerName("YANDAPALLI/KALYAN SWAROOP"), "Kalyan Swaroop Yandapalli");
+      assert.equal(normalizePassengerName("KUKREJA, ANIL"), "Anil Kukreja");
+      assert.equal(normalizePassengerName("MR. SURESH BABU"), "Suresh Babu");
+    });
+
+    test("splitSector splits various sector notations into origin and destination", () => {
+      assert.deepEqual(splitSector("HYD-DEL"), { fromLocation: "HYD", toLocation: "DEL" });
+      assert.deepEqual(splitSector("BOM / BLR"), { fromLocation: "BOM", toLocation: "BLR" });
+      assert.deepEqual(splitSector("DEL to MAA"), { fromLocation: "DEL", toLocation: "MAA" });
+      assert.deepEqual(splitSector("CCU -> BOM"), { fromLocation: "CCU", toLocation: "BOM" });
+      assert.equal(splitSector("SINGLECITY"), null);
+    });
+
+    test("parseExcelDate handles 2-digit years, months, and Excel serial numbers", () => {
+      assert.equal(parseExcelDate("01 Sep 26"), "2026-09-01");
+      assert.equal(parseExcelDate("15-Sep-2026"), "2026-09-15");
+      assert.equal(parseExcelDate("15/09/2026"), "2026-09-15");
+      assert.equal(parseExcelDate("2026-09-15"), "2026-09-15");
+      // 45565 = 2024-09-29 or similar Excel date code
+      const parsedNum = parseExcelDate(45565);
+      assert.ok(parsedNum && parsedNum.startsWith("2024-09"));
+    });
+
+    test("parseCost parses numbers, currency symbols, and commas", () => {
+      assert.equal(parseCost(6800.5), 6800.5);
+      assert.equal(parseCost("6800"), 6800);
+      assert.equal(parseCost("$1,450.50"), 1450.5);
+      assert.equal(parseCost("₹ 6,800.00"), 6800);
+      assert.equal(parseCost(""), null);
+    });
+
+    test("isSummaryRow detects TOTAL, GRAND TOTAL, and SUB TOTAL", () => {
+      assert.ok(isSummaryRow(["TOTAL", "", "15000"]));
+      assert.ok(isSummaryRow(["", "GRAND TOTAL", "95000"]));
+      assert.ok(!isSummaryRow(["1", "Suresh Babu", "6800"]));
+    });
+
+    test("parseSpreadsheetClient skips Row 0 title banner and extracts all records with sector", async () => {
+      // Build a synthetic workbook mimicking MISPL SEP 2026 (1).xlsx
+      const wsData = [
+        ["AIR TICKETS"], // Row 0: Title banner
+        ["Sl No", "Date", "Pax Name", "Sector", "Airline", "Ticket No", "Net Amount"], // Row 1: Headers
+        [1, "01 Sep 26", "DANGETI/SURESH BABU MR", "HYD-DEL", "6E", "6E-502", "6800"], // Row 2: Data 1
+        [2, "02 Sep 26", "KUKREJA, ANIL", "BOM/BLR", "AI", "AI-101", 7500], // Row 3: Data 2
+        ["TOTAL", "", "", "", "", "", "14300"], // Row 4: Summary row
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Air Ticketing");
+      const wbBuffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+
+      const parsed = await parseSpreadsheetClient(wbBuffer);
+
+      assert.equal(parsed.sheetNames[0], "Air Ticketing");
+      assert.ok(parsed.availableHeaders.includes("Pax Name"));
+      assert.ok(parsed.availableHeaders.includes("Sector"));
+      assert.ok(parsed.availableHeaders.includes("Date"));
+      assert.equal(parsed.records.length, 2, "Summary row must be excluded");
+
+      const r1 = parsed.records[0];
+      assert.equal(r1.rawEmployeeName, "Suresh Babu Dangeti");
+      assert.equal(r1.fromLocation, "HYD");
+      assert.equal(r1.toLocation, "DEL");
+      assert.equal(r1.travelDate, "2026-09-01");
+      assert.equal(r1.cost, 6800);
+      assert.equal(r1.ticketReference, "6E-502");
+      assert.equal(r1.provider, "6E");
+      assert.equal(r1.status, "VALID");
+      assert.equal(r1.validationErrors.length, 0);
+
+      const r2 = parsed.records[1];
+      assert.equal(r2.rawEmployeeName, "Anil Kukreja");
+      assert.equal(r2.fromLocation, "BOM");
+      assert.equal(r2.toLocation, "BLR");
+      assert.equal(r2.travelDate, "2026-09-02");
+      assert.equal(r2.cost, 7500);
+      assert.equal(r2.status, "VALID");
+    });
+  });
 });
 
