@@ -84,9 +84,10 @@ public class DataInitializer {
                 }
             }
 
-            // 2. Seed TRAVEL DESK: Employee ID 123456, Password: mahathi
-            if (!userRepository.existsByUsername("123456")) {
-                User desk = new User();
+            // 2. Seed or synchronize TRAVEL DESK: Employee ID 123456, Password: mahathi
+            User desk = userRepository.findByUsername("123456").orElse(null);
+            if (desk == null) {
+                desk = new User();
                 desk.setUsername("123456");
                 desk.setPassword(passwordEncoder.encode("mahathi"));
                 desk.setRole(Role.TRAVEL_DESK);
@@ -94,11 +95,29 @@ public class DataInitializer {
                 desk.setActive(true);
                 desk.setCompany(defaultCompany);
                 userRepository.save(desk);
+            } else {
+                boolean modified = false;
+                if (desk.getRole() != Role.TRAVEL_DESK) {
+                    desk.setRole(Role.TRAVEL_DESK);
+                    modified = true;
+                }
+                if (desk.getCompany() == null) {
+                    desk.setCompany(defaultCompany);
+                    modified = true;
+                }
+                if (!desk.isActive()) {
+                    desk.setActive(true);
+                    modified = true;
+                }
+                if (modified) {
+                    userRepository.save(desk);
+                }
             }
 
-            // 3. Seed APPROVER: Employee ID 654321, Password: mahathi1
-            if (!userRepository.existsByUsername("654321")) {
-                User approver = new User();
+            // 3. Seed or synchronize APPROVER: Employee ID 654321, Password: mahathi1
+            User approver = userRepository.findByUsername("654321").orElse(null);
+            if (approver == null) {
+                approver = new User();
                 approver.setUsername("654321");
                 approver.setPassword(passwordEncoder.encode("mahathi1"));
                 approver.setRole(Role.APPROVER);
@@ -106,6 +125,23 @@ public class DataInitializer {
                 approver.setActive(true);
                 approver.setCompany(defaultCompany);
                 userRepository.save(approver);
+            } else {
+                boolean modified = false;
+                if (approver.getRole() != Role.APPROVER) {
+                    approver.setRole(Role.APPROVER);
+                    modified = true;
+                }
+                if (approver.getCompany() == null) {
+                    approver.setCompany(defaultCompany);
+                    modified = true;
+                }
+                if (!approver.isActive()) {
+                    approver.setActive(true);
+                    modified = true;
+                }
+                if (modified) {
+                    userRepository.save(approver);
+                }
             }
 
             // 4. Seed 27 EMPLOYEES: Login ID = employeeNumber, Password = employeeNumber

@@ -97,12 +97,12 @@ export function ExcelImport({ user }: ExcelImportProps) {
   const [exportingCsv, setExportingCsv] = useState(false);
 
   // Load recent batches
-  const loadRecentBatches = async () => {
+  const loadRecentBatches = async (autoSelectFirst = false) => {
     try {
       const data = await importsApi.listBatches({ page: 0, size: 10 });
-      setRecentBatches(data.content);
-      if (!currentBatch && data.content.length > 0) {
-        // Load the most recent batch
+      setRecentBatches(data?.content || []);
+      if (autoSelectFirst && !currentBatch && data?.content && data.content.length > 0) {
+        // Load the most recent batch on mount
         loadBatchDetails(data.content[0].id);
       }
     } catch (err: any) {
@@ -111,18 +111,22 @@ export function ExcelImport({ user }: ExcelImportProps) {
   };
 
   useEffect(() => {
-    loadRecentBatches();
+    loadRecentBatches(true);
   }, []);
 
   // Load batch details and records
   const loadBatchDetails = async (batchId: number) => {
+    if (!batchId) return;
     setPreviewLoading(true);
     setUploadError("");
     try {
       const batch = await importsApi.getBatch(batchId);
       setCurrentBatch(batch);
       setColumnMapping(batch.columnMapping || batch.suggestedMapping || {});
-      await fetchPreviewRecords(batch.id, previewPage, previewSearch, previewStatusFilter);
+      setPreviewPage(0);
+      setPreviewSearch("");
+      setPreviewStatusFilter("ALL");
+      await fetchPreviewRecords(batch.id, 0, "", "ALL");
     } catch (err: any) {
       setUploadError(err.message || "Failed to load batch records.");
     } finally {
@@ -131,6 +135,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
   };
 
   const fetchPreviewRecords = async (batchId: number, page: number, search: string, status: string) => {
+    if (!batchId) return;
     setPreviewLoading(true);
     try {
       const data = await importsApi.getRecords(batchId, {
@@ -139,11 +144,12 @@ export function ExcelImport({ user }: ExcelImportProps) {
         search: search.trim() || undefined,
         status: status !== "ALL" ? status : undefined,
       });
-      setPreviewRecords(data.content);
-      setPreviewTotalPages(data.totalPages);
-      setPreviewTotalElements(data.totalElements);
+      setPreviewRecords(data?.content || []);
+      setPreviewTotalPages(data?.totalPages || 0);
+      setPreviewTotalElements(data?.totalElements || 0);
     } catch (err: any) {
-      toast.error(err.message || "Failed to fetch preview records.");
+      toast.error(err.message || "Failed to load preview records.");
+      setPreviewRecords([]);
     } finally {
       setPreviewLoading(false);
     }
@@ -151,7 +157,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
   // Re-fetch preview records on page/search/filter change
   useEffect(() => {
-    if (currentBatch) {
+    if (currentBatch?.id) {
       fetchPreviewRecords(currentBatch.id, previewPage, previewSearch, previewStatusFilter);
     }
   }, [previewPage, previewStatusFilter]);
@@ -172,7 +178,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
       setPreviewSearch("");
       setPreviewStatusFilter("ALL");
       await fetchPreviewRecords(batch.id, 0, "", "ALL");
-      loadRecentBatches();
+      await loadRecentBatches(false);
     } catch (err: any) {
       setUploadError(err.message || "Failed to upload and parse file.");
       toast.error(err.message || "Upload failed.");
@@ -389,9 +395,19 @@ export function ExcelImport({ user }: ExcelImportProps) {
               </div>
 
               {uploadError && (
-                <div className="form-error-message mt-4 flex items-center gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg">
-                  <XCircle size={16} />
-                  <span>{uploadError}</span>
+                <div role="alert" className="form-error-message mt-4 flex items-start justify-between gap-3 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <XCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+                    <span className="leading-relaxed break-words font-medium">{uploadError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUploadError("")}
+                    className="text-rose-400 hover:text-white transition-colors shrink-0 p-0.5"
+                    aria-label="Dismiss error"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )}
             </div>
@@ -504,7 +520,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-[#94A3B8]">
-                    Showing {previewRecords.length} of {previewTotalElements} rows
+                    Showing {previewRecords?.length || 0} of {previewTotalElements || 0} rows
                   </span>
                   <button
                     type="button"
@@ -575,7 +591,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   <Clock3 size={18} className="animate-spin text-[#14B8A6]" />
                   <span>Loading spreadsheet preview…</span>
                 </div>
-              ) : previewRecords.length > 0 ? (
+              ) : previewRecords && previewRecords.length > 0 ? (
                 <div className="responsive-table">
                   <table>
                     <thead>

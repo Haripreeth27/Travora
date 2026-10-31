@@ -363,11 +363,13 @@ export const DEMO_EMPLOYEES = REGISTERED_EMPLOYEES.map((emp) => ({
 }));
 
 export function getToken() {
+  if (!hasStorage()) return null;
   const token = window.localStorage.getItem("trapple_token") || window.localStorage.getItem("travora_token");
   return token?.trim() || null;
 }
 
 export function getStoredUser<T = AuthUser>(): T | null {
+  if (!hasStorage()) return null;
   const raw = window.localStorage.getItem("trapple_user") || window.localStorage.getItem("travora_user");
   if (!raw) return null;
   try { return JSON.parse(raw) as T; } catch { return null; }
@@ -378,6 +380,7 @@ export function isValidAuthUser(user: AuthUser | null): user is AuthUser {
 }
 
 export function clearAuth({ notify = false }: { notify?: boolean } = {}) {
+  if (!hasStorage()) return;
   window.localStorage.removeItem("trapple_token");
   window.localStorage.removeItem("trapple_user");
   window.localStorage.removeItem("travora_token");
@@ -390,7 +393,9 @@ export function clearAuth({ notify = false }: { notify?: boolean } = {}) {
       }
     }
   } catch {}
-  if (notify) window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+  if (notify && typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+  }
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -1097,20 +1102,73 @@ export interface PaginatedResult<T> {
 
 export const importsApi = {
   upload: async (file: File, sheet?: string): Promise<ImportBatchResponse> => {
+    if (!file) {
+      throw new Error("Please select a valid .xlsx or .csv spreadsheet to upload.");
+    }
     const formData = new FormData();
     formData.append("file", file);
     if (sheet) formData.append("sheet", sheet);
-    const token = typeof window !== "undefined" ? (window.localStorage.getItem("trapple_token") || window.localStorage.getItem("travora_token")) : null;
-    const res = await fetch(`${API_BASE_URL}/api/imports/upload`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: "Failed to upload spreadsheet." }));
-      throw new Error(err.message || "Failed to upload spreadsheet.");
+
+    const token = getToken();
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/api/imports/upload`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+    } catch {
+      throw new Error("We couldn't reach Trapple. Check your connection and try again.");
     }
-    return await res.json();
+
+    const bodyText = await res.text();
+    const isHtml =
+      (res.headers.get("content-type") || "").includes("text/html") ||
+      bodyText.trim().startsWith("<!doctype") ||
+      bodyText.trim().startsWith("<!DOCTYPE") ||
+      bodyText.trim().startsWith("<html");
+
+    if (isHtml) {
+      throw new Error("Trapple backend server not reached (HTML fallback). Verify backend hosting URL.");
+    }
+
+    let data: any = null;
+    try {
+      data = bodyText ? JSON.parse(bodyText) : null;
+    } catch {
+      data = null;
+    }
+
+    if (res.status === 401) {
+      clearAuth({ notify: true });
+      throw new Error("Your session has expired. Please sign in again.");
+    }
+
+    if (res.status === 403) {
+      throw new Error("You do not have permission to upload spreadsheets (Travel Desk or Admin role required).");
+    }
+
+    if (res.status === 413) {
+      throw new Error("The uploaded file exceeds the 20MB maximum size limit. Please upload a smaller file or split the spreadsheet.");
+    }
+
+    if (!res.ok) {
+      const serverMessage =
+        data?.detail ||
+        data?.message ||
+        data?.error ||
+        (Array.isArray(data?.errors) ? data.errors.map((e: any) => e.defaultMessage || e.message || String(e)).join(", ") : undefined) ||
+        (typeof data === "string" && data.trim().length > 0 ? data : undefined);
+
+      throw new Error(
+        serverMessage ||
+        (res.status >= 500
+          ? "Trapple backend encountered an error processing the spreadsheet. Please verify file format and try again."
+          : `Failed to upload spreadsheet (HTTP ${res.status}).`)
+      );
+    }
+
+    return data as ImportBatchResponse;
   },
 
   listBatches: async (params?: { page?: number; size?: number }): Promise<PaginatedResult<ImportBatchResponse>> => {

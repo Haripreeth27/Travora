@@ -3,6 +3,7 @@ package com.traveldesk.backend.importdata;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.traveldesk.backend.auth.User;
+import com.traveldesk.backend.company.Company;
 import com.traveldesk.backend.employee.Employee;
 import com.traveldesk.backend.employee.EmployeeRepository;
 import org.slf4j.Logger;
@@ -45,14 +46,27 @@ public class ImportService {
         this.parserService = parserService;
     }
 
+    private Company getRequiredCompany(User currentUser) {
+        if (currentUser == null || currentUser.getCompany() == null) {
+            throw new IllegalArgumentException("User account is not associated with an active company tenant.");
+        }
+        return currentUser.getCompany();
+    }
+
+    private Long getRequiredCompanyId(User currentUser) {
+        return getRequiredCompany(currentUser).getId();
+    }
+
     /**
      * Upload and parse an Excel or CSV file into a PREVIEW batch.
      */
     @Transactional
     public ImportBatchResponse uploadAndPreview(MultipartFile file, String targetSheet, User currentUser) throws Exception {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("The uploaded file is empty.");
+            throw new IllegalArgumentException("The uploaded file is empty. Please select a valid spreadsheet with data.");
         }
+
+        Company company = getRequiredCompany(currentUser);
 
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
@@ -76,6 +90,11 @@ public class ImportService {
             } else {
                 parsed = parserService.parseCsv(is);
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Spreadsheet parsing failed for file {}: {}", originalFilename, e.getMessage());
+            throw new IllegalArgumentException("Failed to read spreadsheet contents: " + (e.getMessage() != null ? e.getMessage() : "Invalid or corrupted file format."));
         }
 
         if (parsed.headers().isEmpty()) {
@@ -86,7 +105,7 @@ public class ImportService {
 
         // Create ImportBatch in PREVIEW mode
         ImportBatch batch = new ImportBatch();
-        batch.setCompany(currentUser.getCompany());
+        batch.setCompany(company);
         batch.setUploadedBy(currentUser);
         batch.setOriginalFilename(originalFilename);
         batch.setFilename(UUID.randomUUID() + "_" + originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_"));
@@ -125,7 +144,7 @@ public class ImportService {
      */
     @Transactional
     public ImportBatchResponse updateMapping(Long batchId, Map<String, String> newMapping, User currentUser) throws Exception {
-        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, currentUser.getCompany().getId())
+        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
 
         if (!"PREVIEW".equals(batch.getStatus())) {
@@ -167,7 +186,7 @@ public class ImportService {
      */
     @Transactional
     public ImportResultResponse confirmImport(Long batchId, List<Long> selectedRecordIds, User currentUser) {
-        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, currentUser.getCompany().getId())
+        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
 
         if (!"PREVIEW".equals(batch.getStatus())) {
@@ -205,7 +224,7 @@ public class ImportService {
             if (record.getRawEmployeeIdentifier() != null && record.getTravelDate() != null
                     && record.getFromLocation() != null && record.getToLocation() != null) {
                 List<ImportedTravelRecord> existing = recordRepository.findExistingDuplicates(
-                        currentUser.getCompany().getId(),
+                        getRequiredCompanyId(currentUser),
                         record.getRawEmployeeIdentifier(),
                         record.getTravelDate(),
                         record.getFromLocation(),
@@ -253,7 +272,7 @@ public class ImportService {
      * Get batch by ID with company tenant check.
      */
     public ImportBatchResponse getBatch(Long batchId, User currentUser) {
-        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, currentUser.getCompany().getId())
+        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
 
         List<ImportedTravelRecord> records = recordRepository.findByImportBatchId(batchId);
@@ -274,7 +293,7 @@ public class ImportService {
      * List batches for company.
      */
     public Page<ImportBatchResponse> listBatches(User currentUser, Pageable pageable) {
-        Page<ImportBatch> page = batchRepository.findByCompanyIdOrderByCreatedAtDesc(currentUser.getCompany().getId(), pageable);
+        Page<ImportBatch> page = batchRepository.findByCompanyIdOrderByCreatedAtDesc(getRequiredCompanyId(currentUser), pageable);
         return page.map(b -> ImportBatchResponse.from(b, null, null, null));
     }
 
@@ -282,7 +301,7 @@ public class ImportService {
      * Get paginated preview records for a batch.
      */
     public Page<ImportedRecordResponse> getPreviewRecords(Long batchId, String search, String status, User currentUser, Pageable pageable) {
-        batchRepository.findByIdAndCompanyId(batchId, currentUser.getCompany().getId())
+        batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
 
         Page<ImportedTravelRecord> page;
@@ -319,7 +338,7 @@ public class ImportService {
             String search,
             Pageable pageable
     ) {
-        Long companyId = currentUser.getCompany().getId();
+        Long companyId = getRequiredCompanyId(currentUser);
         Page<ImportedTravelRecord> page = recordRepository.searchTravelHistoryFiltered(
                 companyId, employeeId, fromDate, toDate, search, pageable
         );
@@ -336,7 +355,7 @@ public class ImportService {
             LocalDate toDate,
             String search
     ) {
-        Long companyId = currentUser.getCompany().getId();
+        Long companyId = getRequiredCompanyId(currentUser);
         List<ImportedTravelRecord> records = recordRepository.findForExport(companyId, employeeId, fromDate, toDate, search);
 
         StringBuilder sb = new StringBuilder();
@@ -371,7 +390,7 @@ public class ImportService {
             int rowNumber
     ) {
         ImportedTravelRecord record = new ImportedTravelRecord();
-        record.setCompany(currentUser.getCompany());
+        record.setCompany(getRequiredCompany(currentUser));
         record.setImportBatch(batch);
         record.setSourceRowNumber(rowNumber);
         try {
@@ -418,7 +437,7 @@ public class ImportService {
      * Validate and match records against existing employees and check for duplicates.
      */
     private void validateAndMatchRecords(User currentUser, List<ImportedTravelRecord> records) {
-        Long companyId = currentUser.getCompany().getId();
+        Long companyId = getRequiredCompanyId(currentUser);
         Set<String> seenBatchKeys = new HashSet<>();
 
         for (ImportedTravelRecord record : records) {

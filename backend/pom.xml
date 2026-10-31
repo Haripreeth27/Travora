@@ -83,10 +83,10 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Spring Boot integration for Flyway database migrations -->
+        <!-- Flyway Database Migrations -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-flyway</artifactId>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
         </dependency>
         <!-- PostgreSQL support for Flyway -->
         <dependency>

@@ -487,4 +487,27 @@ class ImportControllerTest {
                     .andExpect(jsonPath("$.sheetNames", hasItems("Q1 Travel", "Q2 Travel")));
         }
     }
+
+    @Test
+    @DisplayName("16. User without company tenant context returns 400 Bad Request with actionable message")
+    void upload_userWithoutCompany_returns400ActionableMessage() throws Exception {
+        User userWithoutCompany = new User();
+        userWithoutCompany.setUsername("homeless_admin");
+        userWithoutCompany.setPassword(passwordEncoder.encode("secret"));
+        userWithoutCompany.setRole(Role.ADMIN);
+        userWithoutCompany.setCompany(null);
+        userRepository.save(userWithoutCompany);
+
+        String tokenNoCompany = "Bearer " + jwtService.generateToken(userWithoutCompany);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "trips.csv", "text/csv", "Employee ID\nEMP001\n".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/imports/upload")
+                        .file(file)
+                        .header("Authorization", tokenNoCompany))
+                .andExpect(status().isBadRequest())
+                .andExpect(status().reason(containsString("User account is not associated with an active company tenant.")));
+    }
 }
