@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx";
 import type { ImportedRecordResponse, ImportBatchResponse, EmployeeRecord } from "./api";
 
-const xlsx: any = (XLSX as any).default || XLSX;
+const xlsx: any = XLSX;
+const ssfLib: any = (xlsx as Record<string, any>).SSF || (xlsx as Record<string, any>)["default"]?.SSF;
 
 export interface ClientParsedSpreadsheet {
   sheetNames: string[];
@@ -143,7 +144,7 @@ export function parseExcelDate(val: any): string | null {
   // Handle Excel serial date numbers
   if (typeof val === "number" && val > 20000 && val < 90000) {
     try {
-      const ssf = xlsx.SSF || (xlsx as any).default?.SSF;
+      const ssf = ssfLib || xlsx.SSF;
       if (ssf?.parse_date_code) {
         const parsed = ssf.parse_date_code(val);
         if (parsed && parsed.y && parsed.m && parsed.d) {
@@ -231,6 +232,104 @@ export function isSummaryRow(rowCells: string[]): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Reconstructs missing record fields from raw row JSON snapshot when available
+ */
+export function recoverFieldsFromRawRow(rawRowData?: string | null): Partial<ImportedRecordResponse> | null {
+  if (!rawRowData) return null;
+  try {
+    const map = typeof rawRowData === "string" ? JSON.parse(rawRowData) : rawRowData;
+    if (!map || typeof map !== "object") return null;
+
+    let rawPassenger = "";
+    let rawEmpId = "";
+    let rawDate = "";
+    let fromLoc = "";
+    let toLoc = "";
+    let ticketRef = "";
+    let provider = "";
+    let cost: number | null = null;
+
+    for (const [key, rawVal] of Object.entries(map)) {
+      const val = String(rawVal || "").trim();
+      if (!val) continue;
+      const normKey = key.toLowerCase().replace(/[^a-z0-9]/g, " ").trim();
+
+      // Check if value is sector (e.g. HYD-DEL)
+      const sector = splitSector(val);
+      if (sector && !fromLoc) {
+        fromLoc = sector.fromLocation;
+        toLoc = sector.toLocation;
+      }
+
+      // Check for passenger name (or airline GDS format like DANGETI/SURESH BABU MR)
+      if (!rawPassenger) {
+        if (
+          normKey.includes("pax") ||
+          normKey.includes("passenger") ||
+          (normKey.includes("name") && !normKey.includes("file") && !normKey.includes("company"))
+        ) {
+          rawPassenger = val;
+        } else if (val.includes("/") && /[A-Z]+\/[A-Z]+/.test(val)) {
+          rawPassenger = val;
+        }
+      }
+
+      // Check for employee code
+      if (!rawEmpId && (normKey === "emp id" || normKey === "ps no" || normKey === "employee id")) {
+        rawEmpId = val;
+      }
+
+      // Check for date
+      if (!rawDate) {
+        if (normKey.includes("date") || normKey === "dt") {
+          rawDate = parseExcelDate(val) || val;
+        } else if (
+          /^\d{1,2}[\s\-\/\.]+[A-Za-z]{3}[\s\-\/\.]+\d{2,4}$/.test(val) ||
+          /^\d{4}-\d{2}-\d{2}$/.test(val)
+        ) {
+          rawDate = parseExcelDate(val) || val;
+        }
+      }
+
+      // Check for ticket
+      if (!ticketRef && (normKey.includes("ticket") || normKey.includes("tkt") || normKey.includes("pnr"))) {
+        ticketRef = val;
+      }
+
+      // Check for airline
+      if (!provider && (normKey.includes("airline") || normKey.includes("carrier"))) {
+        provider = val;
+      }
+
+      // Check for cost
+      if (
+        cost == null &&
+        (normKey.includes("amount") ||
+          normKey.includes("fare") ||
+          normKey.includes("cost") ||
+          normKey.includes("net"))
+      ) {
+        cost = parseCost(val);
+      }
+    }
+
+    const normName = normalizePassengerName(rawPassenger);
+    return {
+      rawEmployeeName: normName || rawPassenger || undefined,
+      rawEmployeeIdentifier: rawEmpId || undefined,
+      travelDate: rawDate || undefined,
+      fromLocation: fromLoc || undefined,
+      toLocation: toLoc || undefined,
+      ticketReference: ticketRef || undefined,
+      provider: provider || undefined,
+      cost: cost,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

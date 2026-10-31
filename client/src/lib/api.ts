@@ -1078,6 +1078,7 @@ export interface ImportedRecordResponse {
   validationErrors: string[];
   sourceRowNumber: number;
   imported: boolean;
+  rawRowData?: string | null;
 }
 
 export interface ImportResultResponse {

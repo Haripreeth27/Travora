@@ -30,7 +30,8 @@ public record ImportedRecordResponse(
         String matchConfidence,
         List<String> validationErrors,
         int sourceRowNumber,
-        boolean imported
+        boolean imported,
+        String rawRowData
 ) {
     private static final ObjectMapper mapper = new ObjectMapper();
 
@@ -73,7 +74,8 @@ public record ImportedRecordResponse(
                 record.getMatchConfidence(),
                 errors,
                 record.getSourceRowNumber(),
-                record.isImported()
+                record.isImported(),
+                record.getRawRowData()
         );
     }
 }

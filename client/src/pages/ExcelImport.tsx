@@ -39,6 +39,7 @@ import {
 } from "@/lib/api";
 import {
   parseSpreadsheetClient,
+  recoverFieldsFromRawRow,
   type ClientParsedSpreadsheet,
 } from "@/lib/spreadsheetParser";
 
@@ -174,8 +175,12 @@ export function ExcelImport({ user }: ExcelImportProps) {
       const data = await importsApi.listBatches({ page: 0, size: 10 });
       setRecentBatches(data?.content || []);
       if (autoSelectFirst && !currentBatch && data?.content && data.content.length > 0) {
-        // Load the most recent batch on mount
-        loadBatchDetails(data.content[0].id);
+        // Only auto-select if the batch has valid rows or was completed
+        // Do not auto-display broken invalid preview batches on initial mount
+        const first = data.content[0];
+        if (first.validRows > 0 || first.status === "COMPLETED") {
+          loadBatchDetails(first.id);
+        }
       }
     } catch (err: any) {
       console.error("Failed to load batches:", err);
@@ -226,28 +231,53 @@ export function ExcelImport({ user }: ExcelImportProps) {
           status: status !== "ALL" ? status : undefined,
         });
 
-        // Merge backend records with client-parsed fallback if server has unmapped fields
+        // Merge backend records with client-parsed fallback OR recover from rawRowData
         const clientRecs = clientParsedRef.current?.records;
         const mergedContent = (data?.content || []).map((r, idx) => {
-          const fallback = clientRecs ? clientRecs[idx + page * 15] : null;
-          if (!fallback) return r;
+          const clientFallback = clientRecs ? clientRecs[idx + page * 15] : null;
+          const recovered =
+            !r.rawEmployeeName || !r.travelDate || !r.fromLocation
+              ? recoverFieldsFromRawRow(r.rawRowData)
+              : null;
+
+          const rawEmployeeName =
+            r.rawEmployeeName || clientFallback?.rawEmployeeName || recovered?.rawEmployeeName || null;
+          const rawEmployeeIdentifier =
+            r.rawEmployeeIdentifier ||
+            clientFallback?.rawEmployeeIdentifier ||
+            recovered?.rawEmployeeIdentifier ||
+            null;
+          const travelDate = r.travelDate || clientFallback?.travelDate || recovered?.travelDate || null;
+          const fromLocation = r.fromLocation || clientFallback?.fromLocation || recovered?.fromLocation || null;
+          const toLocation = r.toLocation || clientFallback?.toLocation || recovered?.toLocation || null;
+          const ticketReference =
+            r.ticketReference || clientFallback?.ticketReference || recovered?.ticketReference || null;
+          const provider = r.provider || clientFallback?.provider || recovered?.provider || null;
+          const cost =
+            r.cost != null
+              ? r.cost
+              : clientFallback?.cost != null
+              ? clientFallback.cost
+              : recovered?.cost ?? null;
+
+          const isValid = Boolean(rawEmployeeName && travelDate && fromLocation && toLocation);
+          const status: ImportedRecordResponse["status"] =
+            r.status !== "INVALID" ? r.status : isValid ? "VALID" : "INVALID";
+
           return {
             ...r,
-            rawEmployeeName: r.rawEmployeeName || fallback.rawEmployeeName,
-            rawEmployeeIdentifier: r.rawEmployeeIdentifier || fallback.rawEmployeeIdentifier,
-            matchedEmployeeName: r.matchedEmployeeName || fallback.matchedEmployeeName,
-            matchedEmployeeCode: r.matchedEmployeeCode || fallback.matchedEmployeeCode,
-            travelDate: r.travelDate || fallback.travelDate,
-            fromLocation: r.fromLocation || fallback.fromLocation,
-            toLocation: r.toLocation || fallback.toLocation,
-            ticketReference: r.ticketReference || fallback.ticketReference,
-            provider: r.provider || fallback.provider,
-            cost: r.cost != null ? r.cost : fallback.cost,
-            status: r.status === "INVALID" && fallback.status !== "INVALID" ? fallback.status : r.status,
-            validationErrors:
-              r.validationErrors && r.validationErrors.length > 0 && fallback.validationErrors.length === 0
-                ? fallback.validationErrors
-                : r.validationErrors,
+            rawEmployeeName,
+            rawEmployeeIdentifier,
+            matchedEmployeeName: r.matchedEmployeeName || clientFallback?.matchedEmployeeName,
+            matchedEmployeeCode: r.matchedEmployeeCode || clientFallback?.matchedEmployeeCode,
+            travelDate,
+            fromLocation,
+            toLocation,
+            ticketReference,
+            provider,
+            cost,
+            status,
+            validationErrors: isValid ? [] : r.validationErrors,
           };
         });
 
@@ -861,7 +891,12 @@ export function ExcelImport({ user }: ExcelImportProps) {
                         const clientFallback =
                           clientParsedRef.current?.records?.[r.sourceRowNumber - 2] ||
                           clientParsedRef.current?.records?.[rowIdx + previewPage * 15];
-                        const rawName = r.rawEmployeeName || clientFallback?.rawEmployeeName || "";
+                        const recovered =
+                          !r.rawEmployeeName || !r.travelDate || !r.fromLocation
+                            ? recoverFieldsFromRawRow(r.rawRowData)
+                            : null;
+                        const rawName =
+                          r.rawEmployeeName || clientFallback?.rawEmployeeName || recovered?.rawEmployeeName || "";
                         const formattedRaw = formatPassengerName(rawName);
                         const displayName =
                           r.matchedEmployeeName ||
@@ -879,15 +914,26 @@ export function ExcelImport({ user }: ExcelImportProps) {
                           clientFallback?.matchedEmployeeCode ||
                           r.rawEmployeeIdentifier ||
                           clientFallback?.rawEmployeeIdentifier ||
+                          recovered?.rawEmployeeIdentifier ||
                           "—";
-                        const travelDate = r.travelDate || clientFallback?.travelDate || "—";
-                        const fromLoc = r.fromLocation || clientFallback?.fromLocation || "—";
-                        const toLoc = r.toLocation || clientFallback?.toLocation || "—";
-                        const ticketRef = r.ticketReference || clientFallback?.ticketReference || "—";
-                        const costVal = r.cost != null ? r.cost : clientFallback?.cost;
+                        const travelDate = r.travelDate || clientFallback?.travelDate || recovered?.travelDate || "—";
+                        const fromLoc = r.fromLocation || clientFallback?.fromLocation || recovered?.fromLocation || "—";
+                        const toLoc = r.toLocation || clientFallback?.toLocation || recovered?.toLocation || "—";
+                        const ticketRef =
+                          r.ticketReference || clientFallback?.ticketReference || recovered?.ticketReference || "—";
+                        const costVal =
+                          r.cost != null
+                            ? r.cost
+                            : clientFallback?.cost != null
+                            ? clientFallback.cost
+                            : recovered?.cost ?? null;
                         const rowStatus =
-                          r.status === "INVALID" && clientFallback && clientFallback.status !== "INVALID"
+                          r.status !== "INVALID"
+                            ? r.status
+                            : clientFallback && clientFallback.status !== "INVALID"
                             ? clientFallback.status
+                            : rawName && travelDate !== "—" && fromLoc !== "—" && toLoc !== "—"
+                            ? "VALID"
                             : r.status;
                         const confidence = r.matchConfidence || clientFallback?.matchConfidence;
 
