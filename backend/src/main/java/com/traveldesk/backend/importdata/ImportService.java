@@ -315,6 +315,7 @@ public class ImportService {
             String q = search.toLowerCase();
             List<ImportedTravelRecord> filtered = page.getContent().stream()
                     .filter(r -> (r.getRawEmployeeName() != null && r.getRawEmployeeName().toLowerCase().contains(q)) ||
+                                 (r.getEmployee() != null && r.getEmployee().getName() != null && r.getEmployee().getName().toLowerCase().contains(q)) ||
                                  (r.getRawEmployeeIdentifier() != null && r.getRawEmployeeIdentifier().toLowerCase().contains(q)) ||
                                  (r.getFromLocation() != null && r.getFromLocation().toLowerCase().contains(q)) ||
                                  (r.getToLocation() != null && r.getToLocation().toLowerCase().contains(q)) ||
@@ -404,8 +405,57 @@ public class ImportService {
     }
 
     private void applyMappingToRecord(ImportedTravelRecord record, Map<String, String> rowMap, Map<String, String> mapping) {
-        record.setRawEmployeeIdentifier(getMappedValue(rowMap, mapping, "employeeId"));
-        record.setRawEmployeeName(getMappedValue(rowMap, mapping, "employeeName"));
+        String empId = getMappedValue(rowMap, mapping, "employeeId");
+        if (empId == null || empId.isBlank()) {
+            // Fallback: check unmapped rowMap for employee/staff/psno ID columns
+            for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                if ((normKey.equals("id") || normKey.equals("emp id") || normKey.equals("empid") ||
+                     normKey.equals("employee id") || normKey.equals("employee code") ||
+                     normKey.equals("emp no") || normKey.equals("staff id") || normKey.equals("ps no") ||
+                     normKey.equals("badge id")) && entry.getValue() != null && !entry.getValue().isBlank()) {
+                    empId = entry.getValue().trim();
+                    break;
+                }
+            }
+        }
+        record.setRawEmployeeIdentifier(empId);
+
+        // 1. Try single employee/passenger name field
+        String rawName = getMappedValue(rowMap, mapping, "employeeName");
+
+        // 2. Try firstName and lastName combination if employeeName is not present
+        if (rawName == null || rawName.isBlank()) {
+            String firstName = getMappedValue(rowMap, mapping, "firstName");
+            String lastName = getMappedValue(rowMap, mapping, "lastName");
+            if (firstName != null || lastName != null) {
+                rawName = ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
+            }
+        }
+
+        // 3. Fallback: inspect raw row data for any passenger/pax/traveler/name column
+        if (rawName == null || rawName.isBlank()) {
+            for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+                String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+                boolean isNameCol = (normKey.contains("passenger") || normKey.contains("pax") ||
+                                     normKey.contains("traveler") || normKey.contains("traveller") ||
+                                     normKey.contains("guest") ||
+                                     (normKey.contains("name") && !normKey.contains("project") &&
+                                      !normKey.contains("dept") && !normKey.contains("department") &&
+                                      !normKey.contains("company") && !normKey.contains("file") &&
+                                      !normKey.contains("sheet") && !normKey.contains("vendor") &&
+                                      !normKey.contains("airline") && !normKey.contains("carrier")));
+                if (isNameCol && entry.getValue() != null && !entry.getValue().isBlank()) {
+                    rawName = entry.getValue().trim();
+                    break;
+                }
+            }
+        }
+
+        // Clean & normalize passenger name
+        String normalizedName = normalizeDisplayName(rawName);
+        record.setRawEmployeeName(normalizedName != null && !normalizedName.isBlank() ? normalizedName : rawName);
+
         record.setFromLocation(getMappedValue(rowMap, mapping, "fromLocation"));
         record.setToLocation(getMappedValue(rowMap, mapping, "toLocation"));
         record.setTicketReference(getMappedValue(rowMap, mapping, "ticketReference"));
@@ -434,11 +484,107 @@ public class ImportService {
     }
 
     /**
+     * Clean and normalize passenger names:
+     * - Airline GDS slash notation (LAST/FIRST MIDDLE TITLE -> First Middle Last)
+     * - Inverted comma notation (LAST, FIRST MIDDLE -> First Middle Last)
+     * - Title removal (MR, MRS, MS, DR, PROF, etc.)
+     * - Proper title casing
+     */
+    public static String normalizeDisplayName(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw.trim();
+
+        Set<String> titles = Set.of("MR", "MRS", "MS", "MISS", "MSTR", "MASTER", "DR", "PROF");
+
+        // Airline slash notation: LAST/FIRST [MIDDLE] [TITLE]
+        if (s.contains("/")) {
+            String[] parts = s.split("/", 2);
+            String last = parts[0].trim();
+            String first = parts.length > 1 ? parts[1].trim() : "";
+
+            String[] firstWords = first.split("\\s+");
+            List<String> cleanedFirst = new ArrayList<>();
+            for (int i = 0; i < firstWords.length; i++) {
+                String w = firstWords[i];
+                String stripped = w.replace(".", "").toUpperCase();
+                if (i == firstWords.length - 1 && titles.contains(stripped)) {
+                    continue;
+                }
+                cleanedFirst.add(w);
+            }
+            first = String.join(" ", cleanedFirst).trim();
+            s = (first + " " + last).trim();
+        } else if (s.contains(",")) {
+            // Comma notation: LAST, FIRST [MIDDLE] [TITLE]
+            String[] parts = s.split(",", 2);
+            String last = parts[0].trim();
+            String first = parts.length > 1 ? parts[1].trim() : "";
+
+            String[] firstWords = first.split("\\s+");
+            List<String> cleanedFirst = new ArrayList<>();
+            for (int i = 0; i < firstWords.length; i++) {
+                String w = firstWords[i];
+                String stripped = w.replace(".", "").toUpperCase();
+                if (i == firstWords.length - 1 && titles.contains(stripped)) {
+                    continue;
+                }
+                cleanedFirst.add(w);
+            }
+            first = String.join(" ", cleanedFirst).trim();
+            s = (first + " " + last).trim();
+        } else {
+            // Strip leading / trailing honorifics
+            String[] words = s.split("\\s+");
+            List<String> list = new ArrayList<>(Arrays.asList(words));
+            if (!list.isEmpty() && titles.contains(list.get(0).replace(".", "").toUpperCase())) {
+                list.remove(0);
+            }
+            if (!list.isEmpty() && titles.contains(list.get(list.size() - 1).replace(".", "").toUpperCase())) {
+                list.remove(list.size() - 1);
+            }
+            s = String.join(" ", list).trim();
+        }
+
+        if (s.isBlank()) return raw.trim();
+
+        // Proper Title Case
+        String[] words = s.split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            String w = words[i].trim();
+            if (w.isEmpty()) continue;
+            if (i > 0) sb.append(" ");
+            if (w.length() == 1) {
+                sb.append(Character.toUpperCase(w.charAt(0)));
+            } else {
+                sb.append(Character.toUpperCase(w.charAt(0)))
+                  .append(w.substring(1).toLowerCase());
+            }
+        }
+        return sb.toString();
+    }
+
+    private static boolean matchesNameTokens(String a, String b) {
+        if (a == null || b == null) return false;
+        Set<String> titles = Set.of("mr", "mrs", "ms", "miss", "dr", "prof");
+        Set<String> tokensA = new HashSet<>();
+        for (String t : a.toLowerCase().split("[^a-z0-9]+")) {
+            if (!t.isBlank() && !titles.contains(t)) tokensA.add(t);
+        }
+        Set<String> tokensB = new HashSet<>();
+        for (String t : b.toLowerCase().split("[^a-z0-9]+")) {
+            if (!t.isBlank() && !titles.contains(t)) tokensB.add(t);
+        }
+        return !tokensA.isEmpty() && tokensA.equals(tokensB);
+    }
+
+    /**
      * Validate and match records against existing employees and check for duplicates.
      */
     private void validateAndMatchRecords(User currentUser, List<ImportedTravelRecord> records) {
         Long companyId = getRequiredCompanyId(currentUser);
         Set<String> seenBatchKeys = new HashSet<>();
+        List<Employee> allCompanyEmployees = employeeRepository.findByCompanyId(companyId);
 
         for (ImportedTravelRecord record : records) {
             List<String> errors = new ArrayList<>();
@@ -455,21 +601,38 @@ public class ImportService {
             Employee matched = null;
             String confidence = "NONE";
 
-            if (record.getRawEmployeeIdentifier() != null) {
-                Optional<Employee> empOpt = employeeRepository.findByCompanyIdAndEmployeeId(companyId, record.getRawEmployeeIdentifier());
+            if (record.getRawEmployeeIdentifier() != null && !record.getRawEmployeeIdentifier().isBlank()) {
+                Optional<Employee> empOpt = employeeRepository.findByCompanyIdAndEmployeeId(companyId, record.getRawEmployeeIdentifier().trim());
                 if (empOpt.isPresent()) {
                     matched = empOpt.get();
                     confidence = "HIGH";
                 }
-            } else if (record.getRawEmployeeName() != null) {
-                // Name-only matching: only if exactly 1 active employee with that name
-                List<Employee> byName = employeeRepository.findByCompanyIdAndNameIgnoreCase(companyId, record.getRawEmployeeName().trim());
+            }
+
+            if (matched == null && record.getRawEmployeeName() != null && !record.getRawEmployeeName().isBlank()) {
+                String candidateName = record.getRawEmployeeName().trim();
+                List<Employee> byName = employeeRepository.findByCompanyIdAndNameIgnoreCase(companyId, candidateName);
                 if (byName.size() == 1) {
                     matched = byName.get(0);
                     confidence = "MEDIUM";
                 } else if (byName.size() > 1) {
                     confidence = "AMBIGUOUS";
-                    errors.add("Multiple employees match name '" + record.getRawEmployeeName() + "'. Identifier required.");
+                    errors.add("Multiple employees match name '" + candidateName + "'. Identifier required.");
+                } else {
+                    // Fuzzy / token matching against company employees
+                    List<Employee> tokenMatches = new ArrayList<>();
+                    for (Employee emp : allCompanyEmployees) {
+                        if (emp.getName() != null && matchesNameTokens(candidateName, emp.getName())) {
+                            tokenMatches.add(emp);
+                        }
+                    }
+                    if (tokenMatches.size() == 1) {
+                        matched = tokenMatches.get(0);
+                        confidence = "MEDIUM";
+                    } else if (tokenMatches.size() > 1) {
+                        confidence = "AMBIGUOUS";
+                        errors.add("Multiple employees match name '" + candidateName + "'. Identifier required.");
+                    }
                 }
             }
 

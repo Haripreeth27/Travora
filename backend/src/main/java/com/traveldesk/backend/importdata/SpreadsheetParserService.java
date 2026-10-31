@@ -202,6 +202,10 @@ public class SpreadsheetParserService {
                 mapping.put("employeeId", header);
             } else if (!mapping.containsKey("employeeName") && matchesEmpName(norm)) {
                 mapping.put("employeeName", header);
+            } else if (!mapping.containsKey("firstName") && matchesFirstName(norm)) {
+                mapping.put("firstName", header);
+            } else if (!mapping.containsKey("lastName") && matchesLastName(norm)) {
+                mapping.put("lastName", header);
             } else if (!mapping.containsKey("travelDate") && matchesTravelDate(norm)) {
                 mapping.put("travelDate", header);
             } else if (!mapping.containsKey("returnDate") && matchesReturnDate(norm)) {
@@ -229,15 +233,48 @@ public class SpreadsheetParserService {
     }
 
     private boolean matchesEmpId(String s) {
+        if (s == null || s.isBlank()) return false;
         return s.equals("employee id") || s.equals("employee code") || s.equals("emp id") ||
                s.equals("emp code") || s.equals("empid") || s.equals("staff id") ||
-               s.equals("employee number") || s.equals("emp no") || s.equals("badge id");
+               s.equals("employee number") || s.equals("emp no") || s.equals("badge id") ||
+               s.equals("badge no") || s.equals("badge number") || s.equals("staff code") ||
+               s.equals("staff no") || s.equals("staff number") || s.equals("id") ||
+               s.equals("ps no") || s.equals("psno") || s.equals("personnel id") ||
+               s.equals("personnel number") || s.equals("emp number") || s.equals("user id") ||
+               s.equals("staffid") || s.equals("empnum");
     }
 
     private boolean matchesEmpName(String s) {
+        if (s == null || s.isBlank()) return false;
+        if (s.contains("project") || s.contains("dept") || s.contains("department") ||
+            s.contains("company") || s.contains("file") || s.contains("sheet") ||
+            s.contains("vendor") || s.contains("airline") || s.contains("carrier")) {
+            return false;
+        }
         return s.equals("employee name") || s.equals("passenger name") || s.equals("name") ||
                s.equals("full name") || s.equals("emp name") || s.equals("staff name") ||
-               s.equals("traveler name") || s.equals("traveller name") || s.equals("employee");
+               s.equals("traveler name") || s.equals("traveller name") || s.equals("employee") ||
+               s.equals("passenger") || s.equals("passengers") || s.equals("passenger names") ||
+               s.equals("passenger name s") || s.equals("passenger s") || s.equals("pax name") ||
+               s.equals("pax") || s.equals("paxname") || s.equals("pax details") ||
+               s.equals("traveler") || s.equals("traveller") || s.equals("travelers") || s.equals("travellers") ||
+               s.equals("guest name") || s.equals("guest") || s.equals("guests") ||
+               s.equals("name of passenger") || s.equals("name of the passenger") ||
+               s.equals("name of traveler") || s.equals("name of the traveler") ||
+               s.equals("name of employee") || s.equals("name of the employee") ||
+               s.equals("customer name") || s.equals("user name") || s.equals("username") ||
+               s.equals("employee full name") || s.equals("staff") || s.equals("personnel name") ||
+               s.startsWith("passenger") || s.startsWith("pax ") || s.startsWith("traveler") || s.startsWith("traveller");
+    }
+
+    private boolean matchesFirstName(String s) {
+        return s.equals("first name") || s.equals("firstname") || s.equals("fname") ||
+               s.equals("given name") || s.equals("first") || s.equals("forename");
+    }
+
+    private boolean matchesLastName(String s) {
+        return s.equals("last name") || s.equals("lastname") || s.equals("lname") ||
+               s.equals("surname") || s.equals("family name") || s.equals("last");
     }
 
     private boolean matchesTravelDate(String s) {

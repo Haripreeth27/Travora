@@ -510,4 +510,35 @@ class ImportControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(status().reason(containsString("User account is not associated with an active company tenant.")));
     }
+
+    @Test
+    @DisplayName("17. Airline GDS slash name notation and Pax Name column are properly parsed and matched")
+    void upload_airlineGdsSlashFormat_normalizesAndMatchesEmployee() throws Exception {
+        // PAX NAME in airline notation "WALKER/ALICE MS" without explicit employee ID column
+        String csvContent = "PAX NAME,Travel Date,Origin,Destination,Ticket Number,Fare\n" +
+                "WALKER/ALICE MS,2026-08-15,New York,London,BA-9901,1450.00\n";
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "airline_gds.csv", "text/csv", csvContent.getBytes(StandardCharsets.UTF_8)
+        );
+
+        org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(multipart("/api/imports/upload")
+                        .file(file)
+                        .header("Authorization", tokenTravelDeskA))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PREVIEW"))
+                .andExpect(jsonPath("$.totalRows").value(1))
+                .andExpect(jsonPath("$.validRows").value(1))
+                .andReturn();
+
+        Number batchId = com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        // Fetch records
+        mockMvc.perform(get("/api/imports/" + batchId + "/records")
+                        .header("Authorization", tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].rawEmployeeName").value("Alice Walker"))
+                .andExpect(jsonPath("$.content[0].matchedEmployeeName").value("Alice Walker"))
+                .andExpect(jsonPath("$.content[0].matchedEmployeeCode").value("EMP001"))
+                .andExpect(jsonPath("$.content[0].status").value("MATCHED"));
+    }
 }

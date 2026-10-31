@@ -151,5 +151,84 @@ describe("Excel Import & Travel History Frontend Contract Tests", () => {
       globalThis.fetch = originalFetch;
     });
   });
+
+  describe("Passenger Name Normalization & Initial Presentation", () => {
+    function formatPassengerName(rawName?: string | null): string {
+      if (!rawName) return "";
+      let s = rawName.trim();
+      const titles = ["MR", "MRS", "MS", "MISS", "MSTR", "MASTER", "DR", "PROF"];
+
+      if (s.includes("/")) {
+        const parts = s.split("/");
+        const last = parts[0].trim();
+        let first = parts.slice(1).join(" ").trim();
+        const firstWords = first.split(/\s+/);
+        if (firstWords.length > 1 && titles.includes(firstWords[firstWords.length - 1].replace(/\./g, "").toUpperCase())) {
+          firstWords.pop();
+          first = firstWords.join(" ");
+        }
+        s = `${first} ${last}`.trim();
+      } else if (s.includes(",")) {
+        const parts = s.split(",");
+        const last = parts[0].trim();
+        let first = parts.slice(1).join(" ").trim();
+        const firstWords = first.split(/\s+/);
+        if (firstWords.length > 1 && titles.includes(firstWords[firstWords.length - 1].replace(/\./g, "").toUpperCase())) {
+          firstWords.pop();
+          first = firstWords.join(" ");
+        }
+        s = `${first} ${last}`.trim();
+      } else {
+        const words = s.split(/\s+/);
+        if (words.length > 1 && titles.includes(words[0].replace(/\./g, "").toUpperCase())) {
+          words.shift();
+          s = words.join(" ");
+        }
+        if (words.length > 1 && titles.includes(words[words.length - 1].replace(/\./g, "").toUpperCase())) {
+          words.pop();
+          s = words.join(" ");
+        }
+      }
+
+      return s
+        .split(/\s+/)
+        .map((w) => (w.length === 1 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+        .join(" ");
+    }
+
+    function getPassengerInitials(name?: string | null): string {
+      if (!name || name === "—") return "PA";
+      const words = name.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return "PA";
+      if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+      return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+    }
+
+    test("converts airline GDS slash notation to clean natural name", () => {
+      assert.equal(formatPassengerName("DANGETI/SURESH BABU MR"), "Suresh Babu Dangeti");
+      assert.equal(formatPassengerName("YANDAPALLI/KALYAN SWAROOP"), "Kalyan Swaroop Yandapalli");
+      assert.equal(formatPassengerName("KUKREJA/ANIL MR."), "Anil Kukreja");
+    });
+
+    test("converts comma inverted notation to natural name", () => {
+      assert.equal(formatPassengerName("KUKREJA, ANIL"), "Anil Kukreja");
+      assert.equal(formatPassengerName("DANGETI, SURESH BABU"), "Suresh Babu Dangeti");
+    });
+
+    test("strips leading and trailing honorific titles and applies title case", () => {
+      assert.equal(formatPassengerName("MR. SURESH BABU DANGETI"), "Suresh Babu Dangeti");
+      assert.equal(formatPassengerName("SURESH BABU DANGETI MR"), "Suresh Babu Dangeti");
+      assert.equal(formatPassengerName("DR. RAMANA M"), "Ramana M");
+      assert.equal(formatPassengerName("suresh babu dangeti"), "Suresh Babu Dangeti");
+    });
+
+    test("extracts clean two-letter initials", () => {
+      assert.equal(getPassengerInitials("Suresh Babu Dangeti"), "SD");
+      assert.equal(getPassengerInitials("Kalyan Swaroop Yandapalli"), "KY");
+      assert.equal(getPassengerInitials("Ramana"), "RA");
+      assert.equal(getPassengerInitials(""), "PA");
+      assert.equal(getPassengerInitials("—"), "PA");
+    });
+  });
 });
 

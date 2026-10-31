@@ -42,7 +42,9 @@ interface ExcelImportProps {
 
 const FIELD_LABELS: Record<string, string> = {
   employeeId: "Employee ID / Code",
-  employeeName: "Passenger / Employee Name",
+  employeeName: "Passenger / Full Name",
+  firstName: "First Name / Given Name",
+  lastName: "Last Name / Surname",
   travelDate: "Travel / Departure Date",
   returnDate: "Return Date",
   fromLocation: "Origin / From City",
@@ -54,6 +56,64 @@ const FIELD_LABELS: Record<string, string> = {
   cost: "Cost / Fare Amount",
   projectName: "Project Name / Cost Center",
 };
+
+/**
+ * Normalizes airline/GDS and raw passenger names:
+ * - DANGETI/SURESH BABU MR -> Suresh Babu Dangeti
+ * - KUKREJA, ANIL -> Anil Kukreja
+ * - Strip airline title honorifics (MR, MRS, MS, DR)
+ * - Format with proper Title Casing
+ */
+function formatPassengerName(rawName?: string | null): string {
+  if (!rawName) return "";
+  let s = rawName.trim();
+  const titles = ["MR", "MRS", "MS", "MISS", "MSTR", "MASTER", "DR", "PROF"];
+
+  if (s.includes("/")) {
+    const parts = s.split("/");
+    const last = parts[0].trim();
+    let first = parts.slice(1).join(" ").trim();
+    const firstWords = first.split(/\s+/);
+    if (firstWords.length > 1 && titles.includes(firstWords[firstWords.length - 1].replace(/\./g, "").toUpperCase())) {
+      firstWords.pop();
+      first = firstWords.join(" ");
+    }
+    s = `${first} ${last}`.trim();
+  } else if (s.includes(",")) {
+    const parts = s.split(",");
+    const last = parts[0].trim();
+    let first = parts.slice(1).join(" ").trim();
+    const firstWords = first.split(/\s+/);
+    if (firstWords.length > 1 && titles.includes(firstWords[firstWords.length - 1].replace(/\./g, "").toUpperCase())) {
+      firstWords.pop();
+      first = firstWords.join(" ");
+    }
+    s = `${first} ${last}`.trim();
+  } else {
+    const words = s.split(/\s+/);
+    if (words.length > 1 && titles.includes(words[0].replace(/\./g, "").toUpperCase())) {
+      words.shift();
+      s = words.join(" ");
+    }
+    if (words.length > 1 && titles.includes(words[words.length - 1].replace(/\./g, "").toUpperCase())) {
+      words.pop();
+      s = words.join(" ");
+    }
+  }
+
+  return s
+    .split(/\s+/)
+    .map((w) => (w.length === 1 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ");
+}
+
+function getPassengerInitials(name?: string | null): string {
+  if (!name || name === "—") return "PA";
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "PA";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
 
 export function ExcelImport({ user }: ExcelImportProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "history">("upload");
@@ -608,61 +668,79 @@ export function ExcelImport({ user }: ExcelImportProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {previewRecords.map((r) => (
-                        <tr
-                          key={r.id}
-                          className="hover:bg-[#1A2234]/50 cursor-pointer"
-                          onClick={() => setSelectedRecord(r)}
-                        >
-                          <td className="text-xs text-[#64748B]">{r.sourceRowNumber}</td>
-                          <td>
-                            <div className="table-journey">
-                              <span className="avatar avatar-tiny">
-                                {String(r.rawEmployeeName || r.matchedEmployeeName || "P").slice(0, 2).toUpperCase()}
-                              </span>
-                              <span>
-                                <strong className="text-white text-xs">
-                                  {r.rawEmployeeName || r.matchedEmployeeName || "—"}
-                                </strong>
-                                {r.matchedEmployeeName && r.rawEmployeeName !== r.matchedEmployeeName && (
-                                  <small className="text-emerald-400">Matched: {r.matchedEmployeeName}</small>
-                                )}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="text-xs font-mono">
-                            {r.matchedEmployeeCode ? (
-                              <span className="text-emerald-400 font-bold">{r.matchedEmployeeCode}</span>
-                            ) : (
-                              r.rawEmployeeIdentifier || "—"
-                            )}
-                          </td>
-                          <td className="text-xs text-white">{r.travelDate || "—"}</td>
-                          <td className="text-xs">
-                            <span className="text-white">{r.fromLocation || "—"}</span>
-                            <span className="text-[#64748B] mx-1.5">→</span>
-                            <span className="text-white">{r.toLocation || "—"}</span>
-                          </td>
-                          <td className="text-xs font-mono text-[#94A3B8]">{r.ticketReference || "—"}</td>
-                          <td className="text-xs font-semibold text-white">
-                            {r.cost != null ? `$${r.cost}` : "—"}
-                          </td>
-                          <td>{getStatusBadge(r.status, r.matchConfidence)}</td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedRecord(r);
-                              }}
-                              className="icon-button"
-                              title="Inspect row details"
-                            >
-                              <Eye size={15} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {previewRecords.map((r) => {
+                        const formattedRaw = formatPassengerName(r.rawEmployeeName);
+                        const displayName = r.matchedEmployeeName || formattedRaw || r.rawEmployeeName || "—";
+                        const isMatched = Boolean(r.matchedEmployeeName);
+                        const showRawDifference = isMatched && r.rawEmployeeName && formattedRaw !== r.matchedEmployeeName;
+
+                        return (
+                          <tr
+                            key={r.id}
+                            className="hover:bg-[#1A2234]/50 cursor-pointer"
+                            onClick={() => setSelectedRecord(r)}
+                          >
+                            <td className="text-xs text-[#64748B]">{r.sourceRowNumber}</td>
+                            <td>
+                              <div className="table-journey">
+                                <span className="avatar avatar-tiny">
+                                  {getPassengerInitials(displayName)}
+                                </span>
+                                <span>
+                                  <strong className="text-white text-xs flex items-center gap-1.5">
+                                    {displayName}
+                                    {isMatched && (
+                                      <span className="inline-flex items-center text-[10px] text-emerald-400 font-normal">
+                                        <CheckCircle2 size={11} className="inline mr-0.5" /> Matched
+                                      </span>
+                                    )}
+                                  </strong>
+                                  {showRawDifference ? (
+                                    <small className="text-[#94A3B8] text-[10px] block">
+                                      File: {r.rawEmployeeName}
+                                    </small>
+                                  ) : r.rawEmployeeName && !isMatched && formattedRaw !== r.rawEmployeeName ? (
+                                    <small className="text-[#94A3B8] text-[10px] block">
+                                      Raw: {r.rawEmployeeName}
+                                    </small>
+                                  ) : null}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="text-xs font-mono">
+                              {r.matchedEmployeeCode ? (
+                                <span className="text-emerald-400 font-bold">{r.matchedEmployeeCode}</span>
+                              ) : (
+                                r.rawEmployeeIdentifier || "—"
+                              )}
+                            </td>
+                            <td className="text-xs text-white">{r.travelDate || "—"}</td>
+                            <td className="text-xs">
+                              <span className="text-white">{r.fromLocation || "—"}</span>
+                              <span className="text-[#64748B] mx-1.5">→</span>
+                              <span className="text-white">{r.toLocation || "—"}</span>
+                            </td>
+                            <td className="text-xs font-mono text-[#94A3B8]">{r.ticketReference || "—"}</td>
+                            <td className="text-xs font-semibold text-white">
+                              {r.cost != null ? `$${r.cost}` : "—"}
+                            </td>
+                            <td>{getStatusBadge(r.status, r.matchConfidence)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRecord(r);
+                                }}
+                                className="icon-button"
+                                title="Inspect row details"
+                              >
+                                <Eye size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -812,41 +890,45 @@ export function ExcelImport({ user }: ExcelImportProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {historyRecords.map((r) => (
-                      <tr key={r.id} className="hover:bg-[#1A2234]/50">
-                        <td>
-                          <div className="table-journey">
-                            <span className="avatar avatar-tiny">
-                              {String(r.rawEmployeeName || r.matchedEmployeeName || "T").slice(0, 2).toUpperCase()}
-                            </span>
-                            <span>
-                              <strong className="text-white text-xs">
-                                {r.rawEmployeeName || r.matchedEmployeeName || "—"}
-                              </strong>
-                              {r.matchedEmployeeName && (
-                                <small className="text-emerald-400">Verified: {r.matchedEmployeeName}</small>
-                              )}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="text-xs font-mono font-bold text-emerald-400">
-                          {r.matchedEmployeeCode || r.rawEmployeeIdentifier || "—"}
-                        </td>
-                        <td className="text-xs text-white">{r.travelDate || "—"}</td>
-                        <td className="text-xs">
-                          <span className="text-white">{r.fromLocation || "—"}</span>
-                          <span className="text-[#64748B] mx-1.5">→</span>
-                          <span className="text-white">{r.toLocation || "—"}</span>
-                        </td>
-                        <td className="text-xs font-mono text-[#94A3B8]">{r.ticketReference || "—"}</td>
-                        <td className="text-xs text-[#94A3B8]">{r.travelMode || "FLIGHT"}</td>
-                        <td className="text-xs text-[#94A3B8]">{r.provider || "—"}</td>
-                        <td className="text-xs font-semibold text-white">
-                          {r.cost != null ? `$${r.cost}` : "—"}
-                        </td>
-                        <td className="text-xs text-[#94A3B8]">{r.projectName || "—"}</td>
-                      </tr>
-                    ))}
+                    {historyRecords.map((r) => {
+                      const formattedRaw = formatPassengerName(r.rawEmployeeName);
+                      const displayName = r.matchedEmployeeName || formattedRaw || r.rawEmployeeName || "—";
+                      return (
+                        <tr key={r.id} className="hover:bg-[#1A2234]/50">
+                          <td>
+                            <div className="table-journey">
+                              <span className="avatar avatar-tiny">
+                                {getPassengerInitials(displayName)}
+                              </span>
+                              <span>
+                                <strong className="text-white text-xs">
+                                  {displayName}
+                                </strong>
+                                {r.matchedEmployeeName && (
+                                  <small className="text-emerald-400 block">Verified: {r.matchedEmployeeName}</small>
+                                )}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="text-xs font-mono font-bold text-emerald-400">
+                            {r.matchedEmployeeCode || r.rawEmployeeIdentifier || "—"}
+                          </td>
+                          <td className="text-xs text-white">{r.travelDate || "—"}</td>
+                          <td className="text-xs">
+                            <span className="text-white">{r.fromLocation || "—"}</span>
+                            <span className="text-[#64748B] mx-1.5">→</span>
+                            <span className="text-white">{r.toLocation || "—"}</span>
+                          </td>
+                          <td className="text-xs font-mono text-[#94A3B8]">{r.ticketReference || "—"}</td>
+                          <td className="text-xs text-[#94A3B8]">{r.travelMode || "FLIGHT"}</td>
+                          <td className="text-xs text-[#94A3B8]">{r.provider || "—"}</td>
+                          <td className="text-xs font-semibold text-white">
+                            {r.cost != null ? `$${r.cost}` : "—"}
+                          </td>
+                          <td className="text-xs text-[#94A3B8]">{r.projectName || "—"}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1062,7 +1144,14 @@ export function ExcelImport({ user }: ExcelImportProps) {
             <div className="my-4 grid grid-cols-2 gap-3 text-xs bg-[#0F172A] p-4 rounded-xl border border-[#2A364F]">
               <div>
                 <span className="text-[#64748B] block text-[10px]">Passenger Name</span>
-                <span className="font-semibold text-white">{selectedRecord.rawEmployeeName || "—"}</span>
+                <span className="font-semibold text-white">
+                  {selectedRecord.matchedEmployeeName || formatPassengerName(selectedRecord.rawEmployeeName) || selectedRecord.rawEmployeeName || "—"}
+                </span>
+                {selectedRecord.rawEmployeeName && (
+                  <span className="text-[10px] text-[#64748B] block font-mono mt-0.5">
+                    File: {selectedRecord.rawEmployeeName}
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-[#64748B] block text-[10px]">Employee ID</span>
@@ -1071,7 +1160,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               <div>
                 <span className="text-[#64748B] block text-[10px]">Matched Employee</span>
                 <span className="font-semibold text-emerald-400">
-                  {selectedRecord.matchedEmployeeName ? `${selectedRecord.matchedEmployeeName} (${selectedRecord.matchedEmployeeCode})` : "Unmatched"}
+                  {selectedRecord.matchedEmployeeName ? `${selectedRecord.matchedEmployeeName} (${selectedRecord.matchedEmployeeCode || "Verified"})` : "Unmatched"}
                 </span>
               </div>
               <div>
