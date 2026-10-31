@@ -5,9 +5,10 @@ function hasStorage(): boolean {
 const isLocal =
   typeof window !== "undefined" &&
   (window.location?.hostname === "localhost" || window.location?.hostname === "127.0.0.1");
+const DEFAULT_BACKEND_URL = "https://trapple.onrender.com";
 const API_BASE_URL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  (isLocal ? "http://localhost:8080" : "");
+  (isLocal ? "http://localhost:8080" : DEFAULT_BACKEND_URL);
 
 export type Role = "EMPLOYEE" | "APPROVER" | "TRAVEL_DESK" | "ADMIN" | "COMPANY_ADMIN" | "PLATFORM_ADMIN";
 export type AuthUser = {
